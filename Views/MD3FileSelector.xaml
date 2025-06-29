@@ -1,0 +1,102 @@
+﻿<UserControl x:Class="ExcelMatcher.Views.MD3FileSelector"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d"
+             d:DesignHeight="100" d:DesignWidth="600">
+
+    <UserControl.Resources>
+        <!-- Drop Zone Style -->
+        <Style x:Key="DropZoneStyle" TargetType="Border">
+            <Setter Property="BorderBrush" Value="{StaticResource MD3OutlineVariantBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="{StaticResource MD3SurfaceBrush}" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource MD3PrimaryBrush}" />
+                    <Setter Property="Background" Value="{StaticResource MD3PrimaryContainerBrush}" />
+                </Trigger>
+                <DataTrigger Binding="{Binding IsDragOver, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                             Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource MD3PrimaryBrush}" />
+                    <Setter Property="Background" Value="{StaticResource MD3PrimaryContainerBrush}" />
+                    <Setter Property="BorderThickness" Value="3" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource DropZoneStyle}"
+            AllowDrop="True"
+            DragEnter="Border_DragEnter"
+            DragOver="Border_DragOver"
+            DragLeave="Border_DragLeave"
+            Drop="Border_Drop"
+            MouseLeftButtonUp="Border_MouseLeftButtonUp">
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- File Icon -->
+            <materialDesign:PackIcon Grid.Column="0"
+                                     Kind="FileExcel"
+                                     Width="32" Height="32"
+                                     VerticalAlignment="Center"
+                                     Foreground="{StaticResource MD3PrimaryBrush}"
+                                     Margin="0,0,16,0" />
+
+            <!-- File Info -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <!-- File Path or Placeholder -->
+                <TextBlock x:Name="FilePathTextBlock"
+                           Style="{StaticResource MD3BodyLarge}"
+                           Text="{Binding FilePath, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                           Visibility="{Binding HasFile, RelativeSource={RelativeSource AncestorType=UserControl}, 
+                                     Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                <TextBlock x:Name="PlaceholderTextBlock"
+                           Style="{StaticResource MD3BodyLarge}"
+                           Text="{Binding Placeholder, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                           Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
+                           Visibility="{Binding HasFile, RelativeSource={RelativeSource AncestorType=UserControl}, 
+                                     Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+
+                <!-- Drag Hint -->
+                <TextBlock x:Name="DragHintTextBlock"
+                           Style="{StaticResource MD3LabelMedium}"
+                           Text="拖拽Excel文件到此处或点击选择"
+                           Visibility="{Binding HasFile, RelativeSource={RelativeSource AncestorType=UserControl}, 
+                                     Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+            </StackPanel>
+
+            <!-- Password Field -->
+            <PasswordBox x:Name="PasswordBox"
+                         Grid.Column="2"
+                         materialDesign:HintAssist.Hint="文件密码(可选)"
+                         Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
+                         Width="150"
+                         Margin="16,0"
+                         PasswordChanged="PasswordBox_PasswordChanged" />
+
+            <!-- Browse Button -->
+            <Button Grid.Column="3"
+                    Style="{StaticResource MD3FilledButton}"
+                    Click="BrowseButton_Click">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="FolderOpen" Margin="0,0,8,0" />
+                    <TextBlock Text="浏览" />
+                </StackPanel>
+            </Button>
+        </Grid>
+    </Border>
+</UserControl>

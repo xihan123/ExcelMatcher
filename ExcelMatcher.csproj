@@ -1,0 +1,56 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net9.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UseWPF>true</UseWPF>
+        <AssemblyVersion>2.0.0.0</AssemblyVersion>
+        <FileVersion>2.0.0.0</FileVersion>
+        <AssemblyVersion>2.0.0.0</AssemblyVersion>
+        <!--启用单文件发布-->
+        <PublishSingleFile>true</PublishSingleFile>
+        <!--捆绑运行时-->
+        <SelfContained>false</SelfContained>
+
+        <Authors>xihan123</Authors>
+        <PackageProjectUrl>https://github.com/xihan123/ExcelMatcher</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/xihan123/ExcelMatcher</RepositoryUrl>
+        <AssemblyVersion>1.0.0</AssemblyVersion>
+        <NeutralLanguage>zh</NeutralLanguage>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0"/>
+        <PackageReference Include="EPPlus" Version="8.0.6"/>
+        <PackageReference Include="MaterialDesignThemes" Version="5.2.1"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.6"/>
+        <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
+        <PackageReference Include="NLog" Version="6.0.1"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Themes\"/>
+        <Folder Include="ViewModels\"/>
+        <Folder Include="Resources\"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="NLog.config">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Resource Include="Resources\**\*"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include=".github\workflows\automerge-action.yml"/>
+        <Content Include=".github\workflows\dotnet-desktop.yml"/>
+        <Content Include=".github\workflows\release.yml"/>
+    </ItemGroup>
+
+</Project>

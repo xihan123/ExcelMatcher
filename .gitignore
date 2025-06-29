@@ -1,0 +1,44 @@
+﻿# Microsoft Visual Studio 和 JetBrains Rider 特定文件
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ReSharper 缓存
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# 构建输出
+[Bb]in/
+[Oo]bj/
+
+# NuGet 包
+*.nupkg
+*.snupkg
+/packages/
+!/packages/repositories.config
+
+# 日志文件
+*.log
+*.log.*
+
+# 本地配置文件 (如果将来使用)
+appsettings.Development.json
+secrets.json
+
+# 操作系统生成的文件
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+.Trash-*
