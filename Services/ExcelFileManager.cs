@@ -22,7 +22,7 @@ public class ExcelFileManager
     /// <summary>
     ///     加载Excel文件
     /// </summary>
-    public async Task<ExcelFile> LoadExcelFileAsync(string filePath, string password = null)
+    public async Task<ExcelFile> LoadExcelFileAsync(string filePath, string? password = null)
     {
         if (string.IsNullOrEmpty(filePath))
             throw new ArgumentNullException(nameof(filePath));
