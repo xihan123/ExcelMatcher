@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace ExcelMatcher.Models;
 
@@ -18,8 +19,10 @@ public class FieldMapping : INotifyPropertyChanged
         get => _sourceField;
         set
         {
-            _sourceField = value;
-            OnPropertyChanged(nameof(SourceField));
+            if (SetProperty(ref _sourceField, value))
+                // 当源字段变更时，总是将目标字段更新为源字段的值
+                if (!string.IsNullOrEmpty(value))
+                    TargetField = value;
         }
     }
 
@@ -29,16 +32,22 @@ public class FieldMapping : INotifyPropertyChanged
     public string TargetField
     {
         get => _targetField;
-        set
-        {
-            _targetField = value;
-            OnPropertyChanged(nameof(TargetField));
-        }
+        set => SetProperty(ref _targetField, value);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    protected virtual void OnPropertyChanged(string propertyName)
+    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+            return false;
+
+        field = value;
+        OnPropertyChanged(propertyName);
+        return true;
+    }
+
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }

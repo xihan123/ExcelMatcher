@@ -934,11 +934,31 @@ public class MainViewModel : BaseViewModel
     {
         try
         {
-            var mapping = new FieldMapping
+            var mapping = new FieldMapping();
+
+            // 智能填充源字段：优先使用选中的辅助表匹配字段
+            if (SelectedSecondaryMatchFields.Count > 0)
             {
-                SourceField = SecondaryColumns.FirstOrDefault() ?? string.Empty,
-                TargetField = string.Empty
-            };
+                // 查找还未被映射的选中字段
+                var unmappedFields = SelectedSecondaryMatchFields
+                    .Where(field => !FieldMappings.Any(fm => fm.SourceField == field))
+                    .ToList();
+
+                if (unmappedFields.Count > 0)
+                    mapping.SourceField = unmappedFields.First();
+                // 目标字段会通过SourceField的setter自动填充
+                else if (SelectedSecondaryMatchFields.Count > 0)
+                    // 如果所有选中字段都已映射，使用第一个选中字段
+                    mapping.SourceField = SelectedSecondaryMatchFields.First();
+            }
+            else if (SecondaryColumns.Count > 0)
+            {
+                // 如果没有选中字段，使用第一个可用字段
+                mapping.SourceField = SecondaryColumns.FirstOrDefault() ?? string.Empty;
+            }
+
+            // 如果以上都没有设置源字段，则保持空值
+            // 这样用户在下拉选择时会触发自动填充
 
             // 监听属性变更
             if (mapping is INotifyPropertyChanged notifyMapping)
@@ -2835,11 +2855,12 @@ public class MainViewModel : BaseViewModel
             foreach (var mapping in config.FieldMappings)
                 if (!string.IsNullOrEmpty(mapping.SourceField) && SecondaryColumns.Contains(mapping.SourceField))
                 {
-                    var newMapping = new FieldMapping
-                    {
-                        SourceField = mapping.SourceField,
-                        TargetField = mapping.TargetField
-                    };
+                    var newMapping = new FieldMapping();
+
+                    // 先设置目标字段，避免被源字段自动覆盖
+                    newMapping.TargetField = mapping.TargetField;
+                    // 然后设置源字段，如果目标字段为空，会被自动填充
+                    newMapping.SourceField = mapping.SourceField;
 
                     // 监听属性变更
                     if (newMapping is INotifyPropertyChanged notifyMapping)
