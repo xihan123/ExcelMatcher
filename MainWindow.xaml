@@ -265,6 +265,7 @@
                                                     <Button Grid.Column="4"
                                                             Style="{StaticResource MaterialDesignIconButton}"
                                                             ToolTip="清除文件"
+                                                            Command="{Binding ClearPrimaryFileCommand}"
                                                             Visibility="{Binding PrimaryFile.IsLoaded, 
                                                                   Converter={StaticResource BooleanToVisibilityConverter}}">
                                                         <materialDesign:PackIcon Kind="Close"
@@ -369,6 +370,7 @@
                                                     <!-- Clear Button -->
                                                     <Button Grid.Column="4"
                                                             Style="{StaticResource MaterialDesignIconButton}"
+                                                            Command="{Binding ClearSecondaryFileCommand}"
                                                             ToolTip="清除文件"
                                                             Visibility="{Binding SecondaryFile.IsLoaded, 
                                                                   Converter={StaticResource BooleanToVisibilityConverter}}">

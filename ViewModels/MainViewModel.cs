@@ -32,6 +32,10 @@ public class MainViewModel : BaseViewModel
     private readonly AsyncRelayCommand _browseSecondaryFileCommand;
     private readonly ConfigurationManager _configurationManager;
     private readonly AsyncRelayCommand<Configuration> _deleteConfigurationCommand;
+    private readonly RelayCommand _clearPrimaryFileCommand;
+    private readonly RelayCommand _clearSecondaryFileCommand;
+    public ICommand ClearPrimaryFileCommand => _clearPrimaryFileCommand;
+    public ICommand ClearSecondaryFileCommand => _clearSecondaryFileCommand;
 
     /// <summary>
     ///     诊断匹配问题命令
@@ -159,6 +163,8 @@ public class MainViewModel : BaseViewModel
         _saveConfigurationCommand = new AsyncRelayCommand(SaveConfigurationAsync);
         _loadConfigurationCommand = new AsyncRelayCommand(LoadConfigurationAsync);
         _resetConfigurationCommand = new RelayCommand(ResetConfiguration);
+        _clearPrimaryFileCommand = new RelayCommand(ClearPrimaryFile);
+        _clearSecondaryFileCommand = new RelayCommand(ClearSecondaryFile);
 
         _updateSelectedPrimaryMatchFieldsCommand = new RelayCommand<IList>(UpdateSelectedPrimaryMatchFields);
         _updateSelectedSecondaryMatchFieldsCommand = new RelayCommand<IList>(UpdateSelectedSecondaryMatchFields);
@@ -2944,6 +2950,35 @@ public class MainViewModel : BaseViewModel
                     }
                 });
         });
+    }
+
+    private void ClearPrimaryFile()
+    {
+        PrimaryFilePath = string.Empty;
+        PrimaryFilePassword = string.Empty;
+        PrimaryFile = new ExcelFile();
+        PrimaryWorksheets.Clear();
+        PrimaryColumns.Clear();
+        SelectedPrimaryWorksheets.Clear();
+        SelectedPrimaryMatchFields.Clear();
+        PrimaryPreviewData = null;
+        PrimaryFilters.Clear();
+        StatusMessage = "已清除主表文件";
+    }
+
+    private void ClearSecondaryFile()
+    {
+        SecondaryFilePath = string.Empty;
+        SecondaryFilePassword = string.Empty;
+        SecondaryFile = new ExcelFile();
+        SecondaryWorksheets.Clear();
+        SecondaryColumns.Clear();
+        SelectedSecondaryWorksheets.Clear();
+        SelectedSecondaryMatchFields.Clear();
+        SecondaryPreviewData = null;
+        SecondaryFilters.Clear();
+        FieldMappings.Clear(); // 清除字段映射
+        StatusMessage = "已清除辅助表文件";
     }
 
     /// <summary>
