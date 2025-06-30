@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/xihan123/ExcelMatcher/compare/v1.1.2...v1.2.0) (2025-06-30)
+
+
+### Features
+
+* 源字段默认自动更新目标字段 ([f1532ba](https://github.com/xihan123/ExcelMatcher/commit/f1532ba46fde2f606ede1e7384715318cbe1f471))
+
 ## [1.1.2](https://github.com/xihan123/ExcelMatcher/compare/v1.1.1...v1.1.2) (2025-06-30)
 
 
