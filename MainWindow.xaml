@@ -22,84 +22,109 @@
         ResizeMode="CanResizeWithGrip"
         AllowsTransparency="True">
 
+    <!-- 窗口资源定义 -->
     <Window.Resources>
-        <!-- Section Header Style -->
+        <!-- 区域标题样式 -->
         <Style x:Key="SectionHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource MD3TitleLarge}">
             <Setter Property="Margin" Value="0,0,0,24" />
             <Setter Property="FontWeight" Value="Medium" />
         </Style>
 
-        <!-- Info Card Style -->
+        <!-- 信息卡片样式 -->
         <Style x:Key="InfoCardStyle" TargetType="materialDesign:Card" BasedOn="{StaticResource MD3OutlinedCard}">
             <Setter Property="Margin" Value="0,12,0,0" />
             <Setter Property="Background" Value="{StaticResource MD3PrimaryContainerBrush}" />
             <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp2" />
         </Style>
 
-        <!-- File Drop Zone Style -->
+        <!-- 文件拖拽区域样式 -->
         <Style x:Key="FileDropZoneStyle" TargetType="Border">
             <Setter Property="BorderBrush" Value="{StaticResource MD3OutlineVariantBrush}" />
             <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="CornerRadius" Value="16" />
             <Setter Property="Background" Value="{StaticResource MD3SurfaceBrush}" />
-            <Setter Property="Padding" Value="16" />
-            <Setter Property="MinHeight" Value="56" />
+            <Setter Property="Padding" Value="20" />
+            <Setter Property="MinHeight" Value="64" />
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.1" Color="{StaticResource MD3Surface}" />
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
+                <!-- 鼠标悬停效果 -->
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="BorderBrush" Value="{StaticResource MD3PrimaryBrush}" />
                     <Setter Property="Background" Value="{StaticResource MD3PrimaryContainerBrush}" />
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect BlurRadius="12" ShadowDepth="4" Opacity="0.2"
+                                              Color="{StaticResource MD3Primary}" />
+                        </Setter.Value>
+                    </Setter>
                 </Trigger>
+                <!-- 拖拽激活效果 -->
+                <DataTrigger Binding="{Binding IsDragOver}" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource MD3SecondaryBrush}" />
+                    <Setter Property="Background" Value="{StaticResource MD3SecondaryContainerBrush}" />
+                    <Setter Property="BorderThickness" Value="3" />
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 
-        <!-- Field Mapping Item Style -->
+        <!-- 字段映射项样式 -->
         <Style x:Key="FieldMappingItemStyle" TargetType="Grid">
             <Setter Property="Margin" Value="0,8" />
         </Style>
 
-        <!-- Filter Condition Item Style -->
+        <!-- 筛选条件项样式 -->
         <Style x:Key="FilterConditionItemStyle" TargetType="Grid">
             <Setter Property="Margin" Value="0,8" />
         </Style>
 
-        <!-- Animation Resources -->
+        <!-- 平滑出现动画 -->
 
+        <!-- 滑入动画 -->
         <Storyboard x:Key="SlideUpAnimation">
             <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
-                             From="20" To="0" Duration="0:0:0.3">
+                             From="30" To="0" Duration="0:0:0.5">
                 <DoubleAnimation.EasingFunction>
                     <CubicEase EasingMode="EaseOut" />
                 </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
             <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                             From="0" To="1" Duration="0:0:0.3" />
+                             From="0" To="1" Duration="0:0:0.5" />
         </Storyboard>
 
     </Window.Resources>
 
+    <!-- 主对话框容器 -->
     <materialDesign:DialogHost Identifier="RootDialog">
         <materialDesign:DialogHost Identifier="ConfirmDialog">
             <Grid>
-                <!-- Custom Window Chrome -->
+                <!-- 自定义窗口边框 -->
                 <Border Background="{StaticResource MD3SurfaceBrush}"
-                        CornerRadius="16"
+                        CornerRadius="20"
                         BorderThickness="1"
                         BorderBrush="{StaticResource MD3OutlineVariantBrush}"
-                        materialDesign:ElevationAssist.Elevation="Dp4">
+                        materialDesign:ElevationAssist.Elevation="Dp8">
                     <Grid>
                         <Grid.RowDefinitions>
+                            <!-- 标题栏 -->
                             <RowDefinition Height="Auto" />
+                            <!-- 主内容区 -->
                             <RowDefinition Height="*" />
+                            <!-- 底部操作栏 -->
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <!-- Custom Title Bar -->
+                        <!-- 自定义标题栏 -->
                         <materialDesign:ColorZone Grid.Row="0"
                                                   Mode="Custom"
                                                   Background="{StaticResource MD3SurfaceBrush}"
                                                   Foreground="{StaticResource MD3OnSurfaceBrush}"
-                                                  CornerRadius="16,16,0,0"
-                                                  Padding="24,16"
+                                                  CornerRadius="20,20,0,0"
+                                                  Padding="32,20"
                                                   MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -108,59 +133,74 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <!-- App Icon and Title -->
+                                <!-- 应用图标和标题 -->
                                 <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                    <!-- 主图标 -->
                                     <materialDesign:PackIcon Kind="TableMergeCells"
-                                                             Width="32" Height="32"
+                                                             Width="36" Height="36"
                                                              VerticalAlignment="Center"
                                                              Foreground="{StaticResource MD3PrimaryBrush}" />
+                                    <!-- 应用标题 -->
                                     <TextBlock Text="Excel数据匹配合并工具"
-                                               Style="{StaticResource MD3TitleLarge}"
+                                               Style="{StaticResource MD3HeadlineSmall}"
                                                VerticalAlignment="Center"
-                                               Margin="16,0,0,0" />
-                                    <materialDesign:PackIcon Kind="Beta"
-                                                             Width="16" Height="16"
-                                                             VerticalAlignment="Top"
-                                                             Foreground="{StaticResource MD3SecondaryBrush}"
-                                                             Margin="8,0,0,0" />
+                                               FontWeight="Medium"
+                                               Margin="20,0,0,0" />
+                                    <!-- 版本标识 -->
+                                    <materialDesign:Chip Content="Beta"
+                                                         Background="{StaticResource MD3SecondaryContainerBrush}"
+                                                         Foreground="{StaticResource MD3OnSecondaryContainerBrush}"
+                                                         FontSize="10"
+                                                         Margin="16,0,0,0" />
                                 </StackPanel>
 
-                                <!-- Window Controls -->
+                                <!-- 窗口控制按钮 -->
                                 <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                    <!-- 最小化按钮 -->
                                     <Button x:Name="MinimizeButton"
                                             Style="{StaticResource MaterialDesignIconForegroundButton}"
-                                            ToolTip="最小化"
-                                            Click="MinimizeButton_Click">
-                                        <materialDesign:PackIcon Kind="WindowMinimize" />
+                                            ToolTip="最小化窗口"
+                                            Click="MinimizeButton_Click"
+                                            Margin="4,0">
+                                        <materialDesign:PackIcon Kind="WindowMinimize"
+                                                                 Width="20" Height="20" />
                                     </Button>
 
+                                    <!-- 最大化/还原按钮 -->
                                     <Button x:Name="MaximizeButton"
                                             Style="{StaticResource MaterialDesignIconForegroundButton}"
-                                            ToolTip="最大化"
-                                            Click="MaximizeButton_Click">
-                                        <materialDesign:PackIcon Kind="WindowMaximize" />
+                                            ToolTip="最大化窗口"
+                                            Click="MaximizeButton_Click"
+                                            Margin="4,0">
+                                        <materialDesign:PackIcon Kind="WindowMaximize"
+                                                                 Width="20" Height="20" />
                                     </Button>
 
+                                    <!-- 关闭按钮 -->
                                     <Button x:Name="CloseButton"
                                             Style="{StaticResource MaterialDesignIconForegroundButton}"
-                                            ToolTip="关闭"
-                                            Click="CloseButton_Click">
-                                        <materialDesign:PackIcon Kind="WindowClose" />
+                                            ToolTip="关闭应用程序"
+                                            Click="CloseButton_Click"
+                                            Margin="4,0">
+                                        <materialDesign:PackIcon Kind="WindowClose"
+                                                                 Width="20" Height="20"
+                                                                 Foreground="{StaticResource MD3ErrorBrush}" />
                                     </Button>
                                 </StackPanel>
                             </Grid>
                         </materialDesign:ColorZone>
 
-                        <!-- Main Content -->
+                        <!-- 主内容滚动区域 -->
                         <ScrollViewer Grid.Row="1"
                                       HorizontalScrollBarVisibility="Disabled"
                                       Style="{StaticResource MD3ScrollViewer}"
-                                      Padding="24,16,24,0">
-                            <StackPanel MaxWidth="1400">
+                                      Padding="32,24,32,0">
+                            <StackPanel MaxWidth="1500" HorizontalAlignment="Center">
 
-                                <!-- File Selection Section -->
-                                <materialDesign:Card Style="{StaticResource MD3Card}">
+                                <!-- 第一部分：文件选择区域 -->
+                                <materialDesign:Card Style="{StaticResource MD3Card}" Margin="0,0,0,24">
                                     <StackPanel>
+                                        <!-- 添加滑入动画 -->
                                         <StackPanel.RenderTransform>
                                             <TranslateTransform />
                                         </StackPanel.RenderTransform>
@@ -170,29 +210,66 @@
                                             </EventTrigger>
                                         </StackPanel.Triggers>
 
-                                        <Grid Margin="0,0,0,24">
+                                        <!-- 区域标题 -->
+                                        <Grid Margin="0,0,0,32">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <materialDesign:PackIcon Grid.Column="0"
-                                                                     Kind="FileDocument"
-                                                                     Width="28" Height="28"
-                                                                     VerticalAlignment="Center"
-                                                                     Foreground="{StaticResource MD3PrimaryBrush}"
-                                                                     Margin="0,0,16,0" />
+                                            <!-- 标题图标和文字 -->
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                <materialDesign:PackIcon Kind="FileDocument"
+                                                                         Width="32" Height="32"
+                                                                         VerticalAlignment="Center"
+                                                                         Foreground="{StaticResource MD3PrimaryBrush}"
+                                                                         Margin="0,0,16,0" />
+                                                <TextBlock Text="文件选择"
+                                                           Style="{StaticResource SectionHeaderStyle}"
+                                                           Margin="0" />
+                                            </StackPanel>
 
-                                            <TextBlock Grid.Column="1"
-                                                       Text="文件选择"
-                                                       Style="{StaticResource SectionHeaderStyle}"
-                                                       Margin="0" />
+                                            <!-- 快速操作按钮 -->
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                                <!-- 数据预览开关 -->
+                                                <materialDesign:Card Style="{StaticResource MD3OutlinedCard}"
+                                                                     Padding="16,12"
+                                                                     Margin="0,0,16,0">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <materialDesign:PackIcon Kind="Eye"
+                                                            Width="18" Height="18"
+                                                            Margin="0,0,8,0"
+                                                            Foreground="{StaticResource MD3PrimaryBrush}" />
+                                                        <TextBlock Text="数据预览"
+                                                                   Style="{StaticResource MD3LabelLarge}"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,12,0" />
+                                                        <ToggleButton x:Name="PreviewToggleButton"
+                                                                      IsChecked="{Binding IsPreviewEnabled}"
+                                                                      Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                                                      ToolTip="启用数据预览可查看文件内容，但会影响大文件处理性能" />
+                                                    </StackPanel>
+                                                </materialDesign:Card>
+
+                                                <!-- 刷新数据按钮 -->
+                                                <Button Command="{Binding RefreshDataCommand}"
+                                                        Style="{StaticResource MD3OutlinedButton}"
+                                                        ToolTip="重新加载文件数据">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <materialDesign:PackIcon Kind="Refresh"
+                                                            Width="18" Height="18"
+                                                            Margin="0,0,8,0" />
+                                                        <TextBlock Text="刷新数据" />
+                                                    </StackPanel>
+                                                </Button>
+                                            </StackPanel>
                                         </Grid>
 
-                                        <!-- Primary File -->
+                                        <!-- 主表文件选择 -->
                                         <Grid Margin="0,0,0,32">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="120" />
+                                                <ColumnDefinition Width="140" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
@@ -200,12 +277,13 @@
                                                 <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
+                                            <!-- 主表标签 -->
                                             <TextBlock Grid.Column="0"
                                                        Text="主表文件"
                                                        Style="{StaticResource MD3LabelLarge}"
                                                        VerticalAlignment="Center" />
 
-                                            <!-- Primary File Drop Zone -->
+                                            <!-- 主表文件拖拽区域 -->
                                             <Border Grid.Column="1"
                                                     Style="{StaticResource FileDropZoneStyle}"
                                                     AllowDrop="True"
@@ -222,49 +300,49 @@
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
 
-                                                    <!-- File Icon -->
+                                                    <!-- 文件图标 -->
                                                     <materialDesign:PackIcon Grid.Column="0"
                                                                              Kind="FileExcel"
-                                                                             Width="24" Height="24"
+                                                                             Width="28" Height="28"
                                                                              VerticalAlignment="Center"
                                                                              Foreground="{StaticResource MD3PrimaryBrush}"
-                                                                             Margin="0,0,12,0" />
+                                                                             Margin="0,0,16,0" />
 
-                                                    <!-- File Path Display -->
+                                                    <!-- 文件路径显示 -->
                                                     <TextBox Grid.Column="1"
                                                              Text="{Binding PrimaryFilePath}"
                                                              Style="{StaticResource MD3TextBox}"
-                                                             materialDesign:HintAssist.Hint="拖拽主表Excel文件到此处或点击浏览"
+                                                             materialDesign:HintAssist.Hint="拖拽主表Excel文件到此处或点击浏览按钮"
                                                              IsReadOnly="True"
                                                              ToolTip="{Binding PrimaryFilePath}"
-                                                             Margin="0,0,12,0" />
+                                                             Margin="0,0,16,0" />
 
-                                                    <!-- Password Field -->
+                                                    <!-- 密码输入框 -->
                                                     <PasswordBox Grid.Column="2"
                                                                  x:Name="PrimaryPasswordBox"
-                                                                 materialDesign:HintAssist.Hint="密码(可选)"
+                                                                 materialDesign:HintAssist.Hint="文件密码(可选)"
                                                                  Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
-                                                                 Width="120"
-                                                                 Margin="0,0,12,0"
+                                                                 Width="140"
+                                                                 Margin="0,0,16,0"
                                                                  PasswordChanged="PrimaryPasswordBox_PasswordChanged" />
 
-                                                    <!-- Browse Button -->
+                                                    <!-- 浏览按钮 -->
                                                     <Button Grid.Column="3"
                                                             Command="{Binding BrowsePrimaryFileCommand}"
                                                             Style="{StaticResource MD3FilledButton}"
-                                                            Margin="0,0,8,0">
+                                                            Margin="0,0,12,0">
                                                         <StackPanel Orientation="Horizontal">
                                                             <materialDesign:PackIcon Kind="FolderOpen"
                                                                 Width="18" Height="18"
                                                                 Margin="0,0,8,0" />
-                                                            <TextBlock Text="浏览" />
+                                                            <TextBlock Text="浏览文件" />
                                                         </StackPanel>
                                                     </Button>
 
-                                                    <!-- Clear Button -->
+                                                    <!-- 清除按钮 -->
                                                     <Button Grid.Column="4"
                                                             Style="{StaticResource MaterialDesignIconButton}"
-                                                            ToolTip="清除文件"
+                                                            ToolTip="清除主表文件"
                                                             Command="{Binding ClearPrimaryFileCommand}"
                                                             Visibility="{Binding PrimaryFile.IsLoaded, 
                                                                   Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -274,7 +352,7 @@
                                                 </Grid>
                                             </Border>
 
-                                            <!-- File Info Card -->
+                                            <!-- 主表文件信息卡片 -->
                                             <materialDesign:Card Grid.Row="1" Grid.Column="1"
                                                                  Style="{StaticResource InfoCardStyle}"
                                                                  Visibility="{Binding PrimaryFile.IsLoaded, 
@@ -286,7 +364,7 @@
                                                                              Margin="0,0,12,0" />
                                                     <TextBlock Foreground="{StaticResource MD3OnPrimaryContainerBrush}"
                                                                Style="{StaticResource MD3BodyMedium}">
-                                                        <Run Text="已成功加载" />
+                                                        <Run Text="文件加载成功，包含" />
                                                         <Run Text="{Binding PrimaryFile.WorksheetCount, Mode=OneWay}"
                                                              FontWeight="Medium" />
                                                         <Run Text="个工作表" />
@@ -295,10 +373,10 @@
                                             </materialDesign:Card>
                                         </Grid>
 
-                                        <!-- Secondary File -->
+                                        <!-- 辅助表文件选择 -->
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="120" />
+                                                <ColumnDefinition Width="140" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
@@ -306,12 +384,13 @@
                                                 <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
+                                            <!-- 辅助表标签 -->
                                             <TextBlock Grid.Column="0"
                                                        Text="辅助表文件"
                                                        Style="{StaticResource MD3LabelLarge}"
                                                        VerticalAlignment="Center" />
 
-                                            <!-- Secondary File Drop Zone -->
+                                            <!-- 辅助表文件拖拽区域 -->
                                             <Border Grid.Column="1"
                                                     Style="{StaticResource FileDropZoneStyle}"
                                                     AllowDrop="True"
@@ -328,50 +407,50 @@
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
 
-                                                    <!-- File Icon -->
+                                                    <!-- 文件图标 -->
                                                     <materialDesign:PackIcon Grid.Column="0"
                                                                              Kind="FileExcel"
-                                                                             Width="24" Height="24"
+                                                                             Width="28" Height="28"
                                                                              VerticalAlignment="Center"
                                                                              Foreground="{StaticResource MD3SecondaryBrush}"
-                                                                             Margin="0,0,12,0" />
+                                                                             Margin="0,0,16,0" />
 
-                                                    <!-- File Path Display -->
+                                                    <!-- 文件路径显示 -->
                                                     <TextBox Grid.Column="1"
                                                              Text="{Binding SecondaryFilePath}"
                                                              Style="{StaticResource MD3TextBox}"
-                                                             materialDesign:HintAssist.Hint="拖拽辅助表Excel文件到此处或点击浏览"
+                                                             materialDesign:HintAssist.Hint="拖拽辅助表Excel文件到此处或点击浏览按钮"
                                                              IsReadOnly="True"
                                                              ToolTip="{Binding SecondaryFilePath}"
-                                                             Margin="0,0,12,0" />
+                                                             Margin="0,0,16,0" />
 
-                                                    <!-- Password Field -->
+                                                    <!-- 密码输入框 -->
                                                     <PasswordBox Grid.Column="2"
                                                                  x:Name="SecondaryPasswordBox"
-                                                                 materialDesign:HintAssist.Hint="密码(可选)"
+                                                                 materialDesign:HintAssist.Hint="文件密码(可选)"
                                                                  Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
-                                                                 Width="120"
-                                                                 Margin="0,0,12,0"
+                                                                 Width="140"
+                                                                 Margin="0,0,16,0"
                                                                  PasswordChanged="SecondaryPasswordBox_PasswordChanged" />
 
-                                                    <!-- Browse Button -->
+                                                    <!-- 浏览按钮 -->
                                                     <Button Grid.Column="3"
                                                             Command="{Binding BrowseSecondaryFileCommand}"
                                                             Style="{StaticResource MD3FilledButton}"
-                                                            Margin="0,0,8,0">
+                                                            Margin="0,0,12,0">
                                                         <StackPanel Orientation="Horizontal">
                                                             <materialDesign:PackIcon Kind="FolderOpen"
                                                                 Width="18" Height="18"
                                                                 Margin="0,0,8,0" />
-                                                            <TextBlock Text="浏览" />
+                                                            <TextBlock Text="浏览文件" />
                                                         </StackPanel>
                                                     </Button>
 
-                                                    <!-- Clear Button -->
+                                                    <!-- 清除按钮 -->
                                                     <Button Grid.Column="4"
                                                             Style="{StaticResource MaterialDesignIconButton}"
                                                             Command="{Binding ClearSecondaryFileCommand}"
-                                                            ToolTip="清除文件"
+                                                            ToolTip="清除辅助表文件"
                                                             Visibility="{Binding SecondaryFile.IsLoaded, 
                                                                   Converter={StaticResource BooleanToVisibilityConverter}}">
                                                         <materialDesign:PackIcon Kind="Close"
@@ -380,7 +459,7 @@
                                                 </Grid>
                                             </Border>
 
-                                            <!-- File Info Card -->
+                                            <!-- 辅助表文件信息卡片 -->
                                             <materialDesign:Card Grid.Row="1" Grid.Column="1"
                                                                  Style="{StaticResource InfoCardStyle}"
                                                                  Visibility="{Binding SecondaryFile.IsLoaded, 
@@ -392,7 +471,7 @@
                                                                              Margin="0,0,12,0" />
                                                     <TextBlock Foreground="{StaticResource MD3OnPrimaryContainerBrush}"
                                                                Style="{StaticResource MD3BodyMedium}">
-                                                        <Run Text="已成功加载" />
+                                                        <Run Text="文件加载成功，包含" />
                                                         <Run Text="{Binding SecondaryFile.WorksheetCount, Mode=OneWay}"
                                                              FontWeight="Medium" />
                                                         <Run Text="个工作表" />
@@ -400,100 +479,59 @@
                                                 </StackPanel>
                                             </materialDesign:Card>
                                         </Grid>
-                                        
-                                        
-
-                                        <!-- Quick Actions -->
-                                        <StackPanel Orientation="Horizontal"
-                                                    HorizontalAlignment="Right"
-                                                    Margin="0,32,0,0">
-
-                                            <!-- 数据预览开关区域 -->
-                                            <materialDesign:Card Style="{StaticResource MD3OutlinedCard}"
-                                                                 Padding="16,12"
-                                                                 Margin="0,0,16,0">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <!-- 开关图标和文本 -->
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
-                                                                Margin="0,0,16,0">
-                                                        <materialDesign:PackIcon Kind="Eye"
-                                                            Width="18" Height="18"
-                                                            Margin="0,0,8,0"
-                                                            Foreground="{StaticResource MD3PrimaryBrush}" />
-                                                        <TextBlock Text="数据预览开关"
-                                                                   Style="{StaticResource MD3LabelLarge}"
-                                                                   VerticalAlignment="Center" />
-                                                    </StackPanel>
-
-                                                    <!-- 开关控件 -->
-                                                    <ToggleButton x:Name="PreviewToggleButton"
-                                                                  IsChecked="{Binding IsPreviewEnabled}"
-                                                                  Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                                                                  ToolTip="启用数据预览可查看文件内容，但会影响大文件处理性能。关闭预览可显著提高加载速度。" />
-                                                </StackPanel>
-                                            </materialDesign:Card>
-                                            
-                                            <Button Command="{Binding RefreshDataCommand}"
-                                                    Style="{StaticResource MD3OutlinedButton}"
-                                                    ToolTip="重新加载文件数据">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <materialDesign:PackIcon Kind="Refresh"
-                                                                             Width="18" Height="18"
-                                                                             Margin="0,0,8,0" />
-                                                    <TextBlock Text="刷新数据" />
-                                                </StackPanel>
-                                            </Button>
-                                        </StackPanel>
                                     </StackPanel>
                                 </materialDesign:Card>
 
-                                <!-- Worksheet Selection Section -->
-                                <materialDesign:Card Style="{StaticResource MD3Card}">
+                                <!-- 第二部分：工作表选择区域 -->
+                                <materialDesign:Card Style="{StaticResource MD3Card}" Margin="0,0,0,24">
                                     <StackPanel>
-                                        <Grid Margin="0,0,0,24">
+                                        <!-- 区域标题 -->
+                                        <Grid Margin="0,0,0,32">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
-                                            <materialDesign:PackIcon Grid.Column="0"
-                                                                     Kind="TableMultiple"
-                                                                     Width="28" Height="28"
-                                                                     VerticalAlignment="Center"
-                                                                     Foreground="{StaticResource MD3PrimaryBrush}"
-                                                                     Margin="0,0,16,0" />
-
-                                            <TextBlock Grid.Column="1"
-                                                       Text="工作表选择"
-                                                       Style="{StaticResource SectionHeaderStyle}"
-                                                       Margin="0" />
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                <materialDesign:PackIcon Kind="TableMultiple"
+                                                                         Width="32" Height="32"
+                                                                         VerticalAlignment="Center"
+                                                                         Foreground="{StaticResource MD3PrimaryBrush}"
+                                                                         Margin="0,0,16,0" />
+                                                <TextBlock Text="工作表选择"
+                                                           Style="{StaticResource SectionHeaderStyle}"
+                                                           Margin="0" />
+                                            </StackPanel>
                                         </Grid>
 
+                                        <!-- 工作表选择界面 -->
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="48" />
+                                                <ColumnDefinition Width="64" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- Primary Worksheets -->
+                                            <!-- 主表工作表选择 -->
                                             <materialDesign:Card Grid.Column="0"
                                                                  Style="{StaticResource MD3OutlinedCard}">
                                                 <StackPanel>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                                    <!-- 主表工作表标题 -->
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
                                                         <materialDesign:PackIcon Kind="Table"
                                                             Foreground="{StaticResource MD3PrimaryBrush}"
-                                                            Width="20" Height="20"
-                                                            Margin="0,0,8,0" />
+                                                            Width="24" Height="24"
+                                                            Margin="0,0,12,0" />
                                                         <TextBlock Text="主表工作表" Style="{StaticResource MD3TitleMedium}" />
                                                     </StackPanel>
 
+                                                    <!-- 主表工作表列表 -->
                                                     <ListBox x:Name="PrimaryWorksheetsListBox"
                                                              ItemsSource="{Binding PrimaryWorksheets}"
                                                              SelectionMode="Extended"
                                                              Style="{StaticResource MD3ListBox}"
-                                                             MaxHeight="200"
-                                                             MinHeight="120">
+                                                             MaxHeight="240"
+                                                             MinHeight="140">
                                                         <i:Interaction.Triggers>
                                                             <i:EventTrigger EventName="SelectionChanged">
                                                                 <i:InvokeCommandAction
@@ -503,9 +541,9 @@
                                                         </i:Interaction.Triggers>
                                                     </ListBox>
 
-                                                    <!-- Selection Info -->
+                                                    <!-- 主表选择信息 -->
                                                     <materialDesign:Card Style="{StaticResource MD3OutlinedCard}"
-                                                                         Margin="0,16,0,0"
+                                                                         Margin="0,20,0,0"
                                                                          Background="{StaticResource MD3SecondaryContainerBrush}">
                                                         <StackPanel>
                                                             <TextBlock Style="{StaticResource MD3LabelMedium}"
@@ -513,7 +551,7 @@
                                                                 <materialDesign:PackIcon Kind="CheckboxMarked"
                                                                     Width="16" Height="16"
                                                                     VerticalAlignment="Center"
-                                                                    Margin="0,0,4,0" />
+                                                                    Margin="0,0,8,0" />
                                                                 <Run Text="已选择" />
                                                                 <Run
                                                                     Text="{Binding SelectedPrimaryWorksheets.Count, Mode=OneWay}"
@@ -525,34 +563,36 @@
                                                 </StackPanel>
                                             </materialDesign:Card>
 
-                                            <!-- Connection Arrow -->
+                                            <!-- 连接箭头 -->
                                             <Grid Grid.Column="1">
                                                 <materialDesign:PackIcon Kind="ArrowLeftRight"
                                                                          HorizontalAlignment="Center"
                                                                          VerticalAlignment="Center"
-                                                                         Width="32" Height="32"
+                                                                         Width="40" Height="40"
                                                                          Foreground="{StaticResource MD3PrimaryBrush}" />
                                             </Grid>
 
-                                            <!-- Secondary Worksheets -->
+                                            <!-- 辅助表工作表选择 -->
                                             <materialDesign:Card Grid.Column="2"
                                                                  Style="{StaticResource MD3OutlinedCard}">
                                                 <StackPanel>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                                    <!-- 辅助表工作表标题 -->
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
                                                         <materialDesign:PackIcon Kind="Table"
                                                             Foreground="{StaticResource MD3SecondaryBrush}"
-                                                            Width="20" Height="20"
-                                                            Margin="0,0,8,0" />
+                                                            Width="24" Height="24"
+                                                            Margin="0,0,12,0" />
                                                         <TextBlock Text="辅助表工作表"
                                                                    Style="{StaticResource MD3TitleMedium}" />
                                                     </StackPanel>
 
+                                                    <!-- 辅助表工作表列表 -->
                                                     <ListBox x:Name="SecondaryWorksheetsListBox"
                                                              ItemsSource="{Binding SecondaryWorksheets}"
                                                              SelectionMode="Extended"
                                                              Style="{StaticResource MD3ListBox}"
-                                                             MaxHeight="200"
-                                                             MinHeight="120">
+                                                             MaxHeight="240"
+                                                             MinHeight="140">
                                                         <i:Interaction.Triggers>
                                                             <i:EventTrigger EventName="SelectionChanged">
                                                                 <i:InvokeCommandAction
@@ -562,9 +602,9 @@
                                                         </i:Interaction.Triggers>
                                                     </ListBox>
 
-                                                    <!-- Selection Info -->
+                                                    <!-- 辅助表选择信息 -->
                                                     <materialDesign:Card Style="{StaticResource MD3OutlinedCard}"
-                                                                         Margin="0,16,0,0"
+                                                                         Margin="0,20,0,0"
                                                                          Background="{StaticResource MD3SecondaryContainerBrush}">
                                                         <StackPanel>
                                                             <TextBlock Style="{StaticResource MD3LabelMedium}"
@@ -572,7 +612,7 @@
                                                                 <materialDesign:PackIcon Kind="CheckboxMarked"
                                                                     Width="16" Height="16"
                                                                     VerticalAlignment="Center"
-                                                                    Margin="0,0,4,0" />
+                                                                    Margin="0,0,8,0" />
                                                                 <Run Text="已选择" />
                                                                 <Run
                                                                     Text="{Binding SelectedSecondaryWorksheets.Count, Mode=OneWay}"
@@ -587,44 +627,46 @@
                                     </StackPanel>
                                 </materialDesign:Card>
 
-                                <!-- Field Configuration Section -->
-                                <materialDesign:Card Style="{StaticResource MD3Card}">
+                                <!-- 第三部分：字段配置区域 -->
+                                <materialDesign:Card Style="{StaticResource MD3Card}" Margin="0,0,0,24">
                                     <StackPanel>
-                                        <Grid Margin="0,0,0,24">
+                                        <!-- 区域标题 -->
+                                        <Grid Margin="0,0,0,32">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
-                                            <materialDesign:PackIcon Grid.Column="0"
-                                                                     Kind="LinkVariant"
-                                                                     Width="28" Height="28"
-                                                                     VerticalAlignment="Center"
-                                                                     Foreground="{StaticResource MD3PrimaryBrush}"
-                                                                     Margin="0,0,16,0" />
-
-                                            <TextBlock Grid.Column="1"
-                                                       Text="字段配置"
-                                                       Style="{StaticResource SectionHeaderStyle}"
-                                                       Margin="0" />
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                <materialDesign:PackIcon Kind="LinkVariant"
+                                                                         Width="32" Height="32"
+                                                                         VerticalAlignment="Center"
+                                                                         Foreground="{StaticResource MD3PrimaryBrush}"
+                                                                         Margin="0,0,16,0" />
+                                                <TextBlock Text="字段配置"
+                                                           Style="{StaticResource SectionHeaderStyle}"
+                                                           Margin="0" />
+                                            </StackPanel>
                                         </Grid>
 
-                                        <!-- Matching Fields -->
-                                        <materialDesign:Card Style="{StaticResource MD3OutlinedCard}" Margin="0,0,0,24">
+                                        <!-- 匹配字段选择 -->
+                                        <materialDesign:Card Style="{StaticResource MD3OutlinedCard}" Margin="0,0,0,32">
                                             <StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                                <!-- 匹配字段标题 -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
                                                     <materialDesign:PackIcon Kind="LinkBox"
                                                                              Foreground="{StaticResource MD3PrimaryBrush}"
-                                                                             Width="24" Height="24"
-                                                                             Margin="0,0,12,0" />
+                                                                             Width="28" Height="28"
+                                                                             Margin="0,0,16,0" />
                                                     <TextBlock Text="匹配字段选择" Style="{StaticResource MD3TitleMedium}" />
                                                     <materialDesign:PackIcon Kind="InformationOutline"
                                                                              Width="20" Height="20"
-                                                                             Margin="16,0,8,0"
+                                                                             Margin="20,0,8,0"
                                                                              Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                                             ToolTip="选择用于匹配主表和辅助表数据的字段" />
+                                                                             ToolTip="选择用于匹配主表和辅助表数据的字段，字段数量必须相等" />
                                                 </StackPanel>
 
+                                                <!-- 匹配字段选择界面 -->
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
@@ -632,17 +674,17 @@
                                                         <ColumnDefinition Width="*" />
                                                     </Grid.ColumnDefinitions>
 
-                                                    <!-- Primary Match Fields -->
+                                                    <!-- 主表匹配字段 -->
                                                     <StackPanel Grid.Column="0">
                                                         <TextBlock Text="主表匹配字段"
                                                                    Style="{StaticResource MD3LabelLarge}"
-                                                                   Margin="0,0,0,8" />
+                                                                   Margin="0,0,0,12" />
                                                         <materialDesign:Card Style="{StaticResource MD3OutlinedCard}">
                                                             <ListBox x:Name="PrimaryMatchFieldsListBox"
                                                                      ItemsSource="{Binding PrimaryColumns}"
                                                                      SelectionMode="Extended"
                                                                      Style="{StaticResource MD3ListBox}"
-                                                                     Height="180">
+                                                                     Height="200">
                                                                 <i:Interaction.Triggers>
                                                                     <i:EventTrigger EventName="SelectionChanged">
                                                                         <i:InvokeCommandAction
@@ -654,30 +696,30 @@
                                                         </materialDesign:Card>
                                                     </StackPanel>
 
-                                                    <!-- Match Indicator -->
+                                                    <!-- 匹配指示器 -->
                                                     <StackPanel Grid.Column="1"
                                                                 VerticalAlignment="Center"
-                                                                Margin="24,0">
+                                                                Margin="32,0">
                                                         <materialDesign:PackIcon Kind="ArrowLeftRight"
-                                                            Width="40" Height="40"
+                                                            Width="48" Height="48"
                                                             Foreground="{StaticResource MD3PrimaryBrush}" />
                                                         <TextBlock Text="匹配关联"
                                                                    Style="{StaticResource MD3LabelMedium}"
                                                                    HorizontalAlignment="Center"
-                                                                   Margin="0,8,0,0" />
+                                                                   Margin="0,12,0,0" />
                                                     </StackPanel>
 
-                                                    <!-- Secondary Match Fields -->
+                                                    <!-- 辅助表匹配字段 -->
                                                     <StackPanel Grid.Column="2">
                                                         <TextBlock Text="辅助表匹配字段"
                                                                    Style="{StaticResource MD3LabelLarge}"
-                                                                   Margin="0,0,0,8" />
+                                                                   Margin="0,0,0,12" />
                                                         <materialDesign:Card Style="{StaticResource MD3OutlinedCard}">
                                                             <ListBox x:Name="SecondaryMatchFieldsListBox"
                                                                      ItemsSource="{Binding SecondaryColumns}"
                                                                      SelectionMode="Extended"
                                                                      Style="{StaticResource MD3ListBox}"
-                                                                     Height="180">
+                                                                     Height="200">
                                                                 <i:Interaction.Triggers>
                                                                     <i:EventTrigger EventName="SelectionChanged">
                                                                         <i:InvokeCommandAction
@@ -692,27 +734,28 @@
                                             </StackPanel>
                                         </materialDesign:Card>
 
-                                        <!-- Field Mappings -->
+                                        <!-- 字段映射配置 -->
                                         <materialDesign:Card Style="{StaticResource MD3OutlinedCard}">
                                             <StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                                <!-- 字段映射标题 -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
                                                     <materialDesign:PackIcon Kind="MapMarker"
                                                                              Foreground="{StaticResource MD3SecondaryBrush}"
-                                                                             Width="24" Height="24"
-                                                                             Margin="0,0,12,0" />
-                                                    <TextBlock Text="字段映射" Style="{StaticResource MD3TitleMedium}" />
-                                                    <TextBlock Text="（辅助表字段 → 主表字段）"
+                                                                             Width="28" Height="28"
+                                                                             Margin="0,0,16,0" />
+                                                    <TextBlock Text="字段映射配置" Style="{StaticResource MD3TitleMedium}" />
+                                                    <TextBlock Text="（辅助表 → 主表）"
                                                                Style="{StaticResource MD3LabelMedium}"
-                                                               Margin="8,0,0,0" />
+                                                               Margin="12,0,0,0" />
                                                     <materialDesign:PackIcon Kind="InformationOutline"
                                                                              Width="20" Height="20"
-                                                                             Margin="16,0,8,0"
+                                                                             Margin="20,0,8,0"
                                                                              Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
                                                                              ToolTip="配置将辅助表数据复制到主表的字段映射关系" />
                                                 </StackPanel>
 
-                                                <!-- Mapping Header -->
-                                                <Grid Margin="0,0,0,8">
+                                                <!-- 映射表头 -->
+                                                <Grid Margin="0,0,0,12">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="Auto" />
@@ -723,26 +766,26 @@
                                                     <TextBlock Grid.Column="0"
                                                                Text="源字段 (辅助表)"
                                                                Style="{StaticResource MD3LabelLarge}"
-                                                               Margin="8,0,0,0" />
+                                                               Margin="12,0,0,0" />
                                                     <TextBlock Grid.Column="2"
                                                                Text="目标字段 (主表)"
                                                                Style="{StaticResource MD3LabelLarge}"
-                                                               Margin="8,0,0,0" />
+                                                               Margin="12,0,0,0" />
                                                     <TextBlock Grid.Column="3"
                                                                Text="操作"
                                                                Style="{StaticResource MD3LabelLarge}"
                                                                HorizontalAlignment="Center" />
                                                 </Grid>
 
-                                                <!-- Mapping List -->
-                                                <ScrollViewer MaxHeight="300"
+                                                <!-- 字段映射列表 -->
+                                                <ScrollViewer MaxHeight="360"
                                                               Style="{StaticResource MD3ScrollViewer}">
                                                     <ItemsControl ItemsSource="{Binding FieldMappings}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <materialDesign:Card
                                                                     Style="{StaticResource MD3OutlinedCard}"
-                                                                    Margin="0,4">
+                                                                    Margin="0,6">
                                                                     <Grid
                                                                         Style="{StaticResource FieldMappingItemStyle}">
                                                                         <Grid.ColumnDefinitions>
@@ -752,39 +795,39 @@
                                                                             <ColumnDefinition Width="Auto" />
                                                                         </Grid.ColumnDefinitions>
 
-                                                                        <!-- Source Field -->
+                                                                        <!-- 源字段选择 -->
                                                                         <ComboBox Grid.Column="0"
                                                                             ItemsSource="{Binding DataContext.SecondaryColumns, 
-                                                                                    RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                        RelativeSource={RelativeSource AncestorType=Window}}"
                                                                             SelectedItem="{Binding SourceField, UpdateSourceTrigger=PropertyChanged}"
                                                                             Style="{StaticResource MD3ComboBox}"
                                                                             materialDesign:HintAssist.Hint="选择源字段"
                                                                             ToolTip="选择辅助表中的源字段" />
 
-                                                                        <!-- Arrow -->
+                                                                        <!-- 映射箭头 -->
                                                                         <materialDesign:PackIcon Grid.Column="1"
                                                                             Kind="ArrowRight"
                                                                             VerticalAlignment="Center"
-                                                                            Margin="16,0"
+                                                                            Margin="20,0"
                                                                             Foreground="{StaticResource MD3PrimaryBrush}" />
 
-                                                                        <!-- Target Field -->
+                                                                        <!-- 目标字段选择 -->
                                                                         <ComboBox Grid.Column="2"
                                                                             ItemsSource="{Binding DataContext.PrimaryColumns, 
-                                                                                    RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                        RelativeSource={RelativeSource AncestorType=Window}}"
                                                                             SelectedItem="{Binding TargetField, UpdateSourceTrigger=PropertyChanged}"
                                                                             Text="{Binding TargetField, UpdateSourceTrigger=PropertyChanged}"
                                                                             Style="{StaticResource MD3EditableComboBox}"
                                                                             materialDesign:HintAssist.Hint="选择或输入目标字段"
                                                                             ToolTip="选择主表中的目标字段或输入新字段名" />
 
-                                                                        <!-- Remove Button -->
+                                                                        <!-- 删除按钮 -->
                                                                         <Button Grid.Column="3"
                                                                             Command="{Binding DataContext.RemoveFieldMappingCommand, 
-                                                                                  RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                      RelativeSource={RelativeSource AncestorType=Window}}"
                                                                             CommandParameter="{Binding}"
                                                                             Style="{StaticResource MaterialDesignIconButton}"
-                                                                            Margin="16,0,0,0"
+                                                                            Margin="20,0,0,0"
                                                                             ToolTip="删除此字段映射">
                                                                             <materialDesign:PackIcon
                                                                                 Kind="DeleteOutline"
@@ -797,11 +840,11 @@
                                                     </ItemsControl>
                                                 </ScrollViewer>
 
-                                                <!-- Add Mapping Button -->
+                                                <!-- 添加映射按钮 -->
                                                 <Button Command="{Binding AddFieldMappingCommand}"
                                                         Style="{StaticResource MD3OutlinedButton}"
                                                         HorizontalAlignment="Left"
-                                                        Margin="0,16,0,0">
+                                                        Margin="0,20,0,0">
                                                     <StackPanel Orientation="Horizontal">
                                                         <materialDesign:PackIcon Kind="Plus"
                                                             Width="18" Height="18"
@@ -814,41 +857,41 @@
                                     </StackPanel>
                                 </materialDesign:Card>
 
-                                <!-- Data Filtering Section -->
-                                <materialDesign:Card Style="{StaticResource MD3Card}">
+                                <!-- 第四部分：数据筛选区域 -->
+                                <materialDesign:Card Style="{StaticResource MD3Card}" Margin="0,0,0,24">
                                     <StackPanel>
-                                        <Grid Margin="0,0,0,24">
+                                        <!-- 区域标题 -->
+                                        <Grid Margin="0,0,0,32">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
-                                            <materialDesign:PackIcon Grid.Column="0"
-                                                                     Kind="FilterVariant"
-                                                                     Width="28" Height="28"
-                                                                     VerticalAlignment="Center"
-                                                                     Foreground="{StaticResource MD3PrimaryBrush}"
-                                                                     Margin="0,0,16,0" />
-
-                                            <TextBlock Grid.Column="1"
-                                                       Text="数据筛选"
-                                                       Style="{StaticResource SectionHeaderStyle}"
-                                                       Margin="0" />
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                <materialDesign:PackIcon Kind="FilterVariant"
+                                                                         Width="32" Height="32"
+                                                                         VerticalAlignment="Center"
+                                                                         Foreground="{StaticResource MD3PrimaryBrush}"
+                                                                         Margin="0,0,16,0" />
+                                                <TextBlock Text="数据筛选"
+                                                           Style="{StaticResource SectionHeaderStyle}"
+                                                           Margin="0" />
+                                            </StackPanel>
                                         </Grid>
 
-                                        <!-- Primary Filters -->
+                                        <!-- 主表筛选条件 -->
                                         <Expander Header="主表筛选条件"
                                                   IsExpanded="False"
                                                   Style="{StaticResource MD3ExpanderSimple}"
-                                                  Margin="0,0,0,16">
-                                            <StackPanel Margin="0,16,0,0">
-                                                <!-- Filter List -->
+                                                  Margin="0,0,0,20">
+                                            <StackPanel Margin="0,20,0,0">
+                                                <!-- 主表筛选列表 -->
                                                 <ItemsControl ItemsSource="{Binding PrimaryFilters}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <materialDesign:Card
                                                                 Style="{StaticResource MD3OutlinedCard}"
-                                                                Margin="0,4">
+                                                                Margin="0,6">
                                                                 <Grid Style="{StaticResource FilterConditionItemStyle}">
                                                                     <Grid.ColumnDefinitions>
                                                                         <ColumnDefinition Width="Auto" />
@@ -858,13 +901,13 @@
                                                                         <ColumnDefinition Width="Auto" />
                                                                     </Grid.ColumnDefinitions>
 
-                                                                    <!-- Logical Operator -->
+                                                                    <!-- 逻辑运算符 -->
                                                                     <ComboBox Grid.Column="0"
                                                                               ItemsSource="{Binding DataContext.LogicalOperators, 
                                                                                 RelativeSource={RelativeSource AncestorType=Window}}"
                                                                               SelectedItem="{Binding LogicalOperator, UpdateSourceTrigger=PropertyChanged}"
                                                                               Style="{StaticResource MD3ComboBox}"
-                                                                              materialDesign:HintAssist.Hint="逻辑"
+                                                                              materialDesign:HintAssist.Hint="逻辑关系"
                                                                               Width="100"
                                                                               Visibility="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type ContentPresenter}}, 
                                                                                 Converter={StaticResource IndexToVisibilityConverter}}">
@@ -877,24 +920,24 @@
                                                                         </ComboBox.ItemTemplate>
                                                                     </ComboBox>
 
-                                                                    <!-- Field -->
+                                                                    <!-- 字段选择 -->
                                                                     <ComboBox Grid.Column="1"
                                                                               ItemsSource="{Binding DataContext.PrimaryColumns, 
                                                                                 RelativeSource={RelativeSource AncestorType=Window}}"
                                                                               SelectedItem="{Binding Field, UpdateSourceTrigger=PropertyChanged}"
                                                                               Style="{StaticResource MD3ComboBox}"
                                                                               materialDesign:HintAssist.Hint="选择字段"
-                                                                              Margin="8,0" />
+                                                                              Margin="12,0" />
 
-                                                                    <!-- Operator -->
+                                                                    <!-- 运算符选择 -->
                                                                     <ComboBox Grid.Column="2"
                                                                               ItemsSource="{Binding DataContext.FilterOperators, 
                                                                                 RelativeSource={RelativeSource AncestorType=Window}}"
                                                                               SelectedItem="{Binding Operator, UpdateSourceTrigger=PropertyChanged}"
                                                                               Style="{StaticResource MD3ComboBox}"
                                                                               materialDesign:HintAssist.Hint="运算符"
-                                                                              Width="140"
-                                                                              Margin="0,0,8,0">
+                                                                              Width="160"
+                                                                              Margin="0,0,12,0">
                                                                         <ComboBox.ItemTemplate>
                                                                             <DataTemplate>
                                                                                 <TextBlock
@@ -904,14 +947,14 @@
                                                                         </ComboBox.ItemTemplate>
                                                                     </ComboBox>
 
-                                                                    <!-- Value -->
+                                                                    <!-- 筛选值输入 -->
                                                                     <TextBox Grid.Column="3"
                                                                              Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
                                                                              Style="{StaticResource MD3TextBox}"
-                                                                             materialDesign:HintAssist.Hint="筛选值"
-                                                                             Margin="0,0,8,0" />
+                                                                             materialDesign:HintAssist.Hint="输入筛选值"
+                                                                             Margin="0,0,12,0" />
 
-                                                                    <!-- Remove Button -->
+                                                                    <!-- 删除按钮 -->
                                                                     <Button Grid.Column="4"
                                                                             Command="{Binding DataContext.RemovePrimaryFilterCommand, 
                                                                               RelativeSource={RelativeSource AncestorType=Window}}"
@@ -926,11 +969,11 @@
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
 
-                                                <!-- Add Filter Button -->
+                                                <!-- 添加主表筛选按钮 -->
                                                 <Button Command="{Binding AddPrimaryFilterCommand}"
                                                         Style="{StaticResource MD3OutlinedButton}"
                                                         HorizontalAlignment="Left"
-                                                        Margin="0,16,0,0">
+                                                        Margin="0,20,0,0">
                                                     <StackPanel Orientation="Horizontal">
                                                         <materialDesign:PackIcon Kind="Plus"
                                                             Width="18" Height="18"
@@ -941,18 +984,18 @@
                                             </StackPanel>
                                         </Expander>
 
-                                        <!-- Secondary Filters -->
+                                        <!-- 辅助表筛选条件 -->
                                         <Expander Header="辅助表筛选条件"
                                                   IsExpanded="False"
                                                   Style="{StaticResource MD3ExpanderSimple}">
-                                            <StackPanel Margin="0,16,0,0">
-                                                <!-- Filter List -->
+                                            <StackPanel Margin="0,20,0,0">
+                                                <!-- 辅助表筛选列表 -->
                                                 <ItemsControl ItemsSource="{Binding SecondaryFilters}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <materialDesign:Card
                                                                 Style="{StaticResource MD3OutlinedCard}"
-                                                                Margin="0,4">
+                                                                Margin="0,6">
                                                                 <Grid Style="{StaticResource FilterConditionItemStyle}">
                                                                     <Grid.ColumnDefinitions>
                                                                         <ColumnDefinition Width="Auto" />
@@ -962,13 +1005,13 @@
                                                                         <ColumnDefinition Width="Auto" />
                                                                     </Grid.ColumnDefinitions>
 
-                                                                    <!-- Logical Operator -->
+                                                                    <!-- 逻辑运算符 -->
                                                                     <ComboBox Grid.Column="0"
                                                                               ItemsSource="{Binding DataContext.LogicalOperators, 
                                                                                 RelativeSource={RelativeSource AncestorType=Window}}"
                                                                               SelectedItem="{Binding LogicalOperator, UpdateSourceTrigger=PropertyChanged}"
                                                                               Style="{StaticResource MD3ComboBox}"
-                                                                              materialDesign:HintAssist.Hint="逻辑"
+                                                                              materialDesign:HintAssist.Hint="逻辑关系"
                                                                               Width="100"
                                                                               Visibility="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type ContentPresenter}}, 
                                                                                 Converter={StaticResource IndexToVisibilityConverter}}">
@@ -981,24 +1024,24 @@
                                                                         </ComboBox.ItemTemplate>
                                                                     </ComboBox>
 
-                                                                    <!-- Field -->
+                                                                    <!-- 字段选择 -->
                                                                     <ComboBox Grid.Column="1"
                                                                               ItemsSource="{Binding DataContext.SecondaryColumns, 
                                                                                 RelativeSource={RelativeSource AncestorType=Window}}"
                                                                               SelectedItem="{Binding Field, UpdateSourceTrigger=PropertyChanged}"
                                                                               Style="{StaticResource MD3ComboBox}"
                                                                               materialDesign:HintAssist.Hint="选择字段"
-                                                                              Margin="8,0" />
+                                                                              Margin="12,0" />
 
-                                                                    <!-- Operator -->
+                                                                    <!-- 运算符选择 -->
                                                                     <ComboBox Grid.Column="2"
                                                                               ItemsSource="{Binding DataContext.FilterOperators, 
                                                                                 RelativeSource={RelativeSource AncestorType=Window}}"
                                                                               SelectedItem="{Binding Operator, UpdateSourceTrigger=PropertyChanged}"
                                                                               Style="{StaticResource MD3ComboBox}"
                                                                               materialDesign:HintAssist.Hint="运算符"
-                                                                              Width="140"
-                                                                              Margin="0,0,8,0">
+                                                                              Width="160"
+                                                                              Margin="0,0,12,0">
                                                                         <ComboBox.ItemTemplate>
                                                                             <DataTemplate>
                                                                                 <TextBlock
@@ -1008,14 +1051,14 @@
                                                                         </ComboBox.ItemTemplate>
                                                                     </ComboBox>
 
-                                                                    <!-- Value -->
+                                                                    <!-- 筛选值输入 -->
                                                                     <TextBox Grid.Column="3"
                                                                              Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
                                                                              Style="{StaticResource MD3TextBox}"
-                                                                             materialDesign:HintAssist.Hint="筛选值"
-                                                                             Margin="0,0,8,0" />
+                                                                             materialDesign:HintAssist.Hint="输入筛选值"
+                                                                             Margin="0,0,12,0" />
 
-                                                                    <!-- Remove Button -->
+                                                                    <!-- 删除按钮 -->
                                                                     <Button Grid.Column="4"
                                                                             Command="{Binding DataContext.RemoveSecondaryFilterCommand, 
                                                                               RelativeSource={RelativeSource AncestorType=Window}}"
@@ -1030,11 +1073,11 @@
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
 
-                                                <!-- Add Filter Button -->
+                                                <!-- 添加辅助表筛选按钮 -->
                                                 <Button Command="{Binding AddSecondaryFilterCommand}"
                                                         Style="{StaticResource MD3OutlinedButton}"
                                                         HorizontalAlignment="Left"
-                                                        Margin="0,16,0,0">
+                                                        Margin="0,20,0,0">
                                                     <StackPanel Orientation="Horizontal">
                                                         <materialDesign:PackIcon Kind="Plus"
                                                             Width="18" Height="18"
@@ -1047,105 +1090,116 @@
                                     </StackPanel>
                                 </materialDesign:Card>
 
-                                <!-- Data Preview Section -->
-                                <materialDesign:Card Style="{StaticResource MD3Card}">
+                                <!-- 第五部分：数据预览区域 -->
+                                <materialDesign:Card Style="{StaticResource MD3Card}" Margin="0,0,0,24">
                                     <StackPanel>
-                                        <Grid Margin="0,0,0,24">
+                                        <!-- 区域标题 -->
+                                        <Grid Margin="0,0,0,32">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
-                                            <materialDesign:PackIcon Grid.Column="0"
-                                                                     Kind="Eye"
-                                                                     Width="28" Height="28"
-                                                                     VerticalAlignment="Center"
-                                                                     Foreground="{StaticResource MD3PrimaryBrush}"
-                                                                     Margin="0,0,16,0" />
-
-                                            <TextBlock Grid.Column="1"
-                                                       Text="数据预览"
-                                                       Style="{StaticResource SectionHeaderStyle}"
-                                                       Margin="0" />
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                <materialDesign:PackIcon Kind="Eye"
+                                                                         Width="32" Height="32"
+                                                                         VerticalAlignment="Center"
+                                                                         Foreground="{StaticResource MD3PrimaryBrush}"
+                                                                         Margin="0,0,16,0" />
+                                                <TextBlock Text="数据预览"
+                                                           Style="{StaticResource SectionHeaderStyle}"
+                                                           Margin="0" />
+                                            </StackPanel>
                                         </Grid>
 
-                                        <Grid Margin="0,16,0,0">
-                                            <!-- 预览已禁用的提示 -->
+                                        <!-- 数据预览内容区 -->
+                                        <Grid Margin="0,20,0,0">
+                                            <!-- 预览已禁用的提示界面 -->
                                             <StackPanel VerticalAlignment="Center"
                                                         HorizontalAlignment="Center"
+                                                        Margin="0,40,0,60"
                                                         Visibility="{Binding IsPreviewEnabled, 
-                      Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                                                      Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                                <!-- 禁用图标 -->
                                                 <materialDesign:PackIcon Kind="EyeOff"
-                                                                         Width="64" Height="64"
+                                                                         Width="80" Height="80"
                                                                          Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                                         Margin="0,0,0,16" />
+                                                                         Margin="0,0,0,24" />
+                                                <!-- 主标题 -->
                                                 <TextBlock Text="数据预览已关闭"
                                                            Style="{StaticResource MD3HeadlineSmall}"
                                                            Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
                                                            HorizontalAlignment="Center"
-                                                           FontWeight="Medium" />
+                                                           FontWeight="Medium"
+                                                           Margin="0,0,0,12" />
+                                                <!-- 副标题 -->
                                                 <TextBlock Text="当前运行在性能优化模式下"
                                                            Style="{StaticResource MD3BodyLarge}"
                                                            Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
                                                            HorizontalAlignment="Center"
-                                                           Margin="0,8,0,0" />
-                                                <TextBlock Text="启用数据预览开关可查看文件内容，但会影响大文件处理性能"
+                                                           Margin="0,0,0,20" />
+                                                <!-- 说明文字 -->
+                                                <TextBlock Text="启用数据预览开关可查看文件内容，但会影响大文件处理性能。关闭预览可显著提高加载速度。"
                                                            Style="{StaticResource MD3BodyMedium}"
                                                            Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
                                                            HorizontalAlignment="Center"
                                                            TextWrapping="Wrap"
-                                                           MaxWidth="400"
+                                                           MaxWidth="500"
                                                            TextAlignment="Center"
-                                                           Margin="0,16,0,24" />
+                                                           Margin="0,0,0,32" />
 
                                                 <!-- 启用预览按钮 -->
                                                 <Button Style="{StaticResource MD3FilledButton}"
-                                                        Click="EnablePreview_Click">
+                                                        Click="EnablePreview_Click"
+                                                        Padding="24,12">
                                                     <StackPanel Orientation="Horizontal">
                                                         <materialDesign:PackIcon Kind="Eye"
-                                                            Width="18" Height="18"
-                                                            Margin="0,0,8,0" />
-                                                        <TextBlock Text="启用数据预览" />
+                                                            Width="20" Height="20"
+                                                            Margin="0,0,12,0" />
+                                                        <TextBlock Text="启用数据预览" FontWeight="Medium" />
                                                     </StackPanel>
                                                 </Button>
                                             </StackPanel>
 
-                                            <!-- 现有的数据显示内容 -->
+                                            <!-- 数据预览标签页 -->
                                             <ScrollViewer
                                                 Visibility="{Binding IsPreviewEnabled, 
-                              Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                        Converter={StaticResource BooleanToVisibilityConverter}}">
                                                 <TabControl Style="{StaticResource MD3TabControl}">
-                                                    <!-- Primary Data Tab -->
+                                                    <!-- 主表数据标签页 -->
                                                     <TabItem Style="{StaticResource MD3TabItem}">
                                                         <TabItem.Header>
                                                             <StackPanel Orientation="Horizontal">
                                                                 <materialDesign:PackIcon Kind="Table"
-                                                                    Width="20" Height="20"
-                                                                    Margin="0,0,8,0" />
-                                                                <TextBlock Text="主表数据" />
+                                                                    Width="22" Height="22"
+                                                                    Margin="0,0,12,0" />
+                                                                <TextBlock Text="主表数据" FontWeight="Medium" />
+                                                                <!-- 工作表数量标识 -->
                                                                 <materialDesign:Chip
                                                                     Content="{Binding SelectedPrimaryWorksheets.Count, StringFormat='{}{0}个工作表'}"
-                                                                    Margin="8,0,0,0"
+                                                                    Margin="12,0,0,0"
                                                                     Style="{StaticResource MaterialDesignOutlineChip}"
-                                                                    FontSize="10"
+                                                                    FontSize="11"
                                                                     Visibility="{Binding SelectedPrimaryWorksheets.Count, 
-                                           Converter={StaticResource CountToVisibilityConverter}}" />
+                                                                                   Converter={StaticResource CountToVisibilityConverter}}" />
                                                             </StackPanel>
                                                         </TabItem.Header>
-                                                        <Grid Margin="0,16,0,0">
-                                                            <!-- Empty State -->
+                                                        <Grid Margin="0,20,0,0">
+                                                            <!-- 主表空状态 -->
                                                             <StackPanel VerticalAlignment="Center"
                                                                         HorizontalAlignment="Center"
+                                                                        Margin="0,60,0,60"
                                                                         Visibility="{Binding HasPrimaryPreviewData, 
-                              Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                                                                      Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                                                                 <materialDesign:PackIcon Kind="TableOff"
                                                                     Width="64" Height="64"
                                                                     Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                                    Margin="0,0,0,16" />
+                                                                    Margin="0,0,0,20" />
                                                                 <TextBlock Text="请先选择主表工作表"
                                                                            Style="{StaticResource MD3BodyLarge}"
                                                                            Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                                           HorizontalAlignment="Center" />
+                                                                           HorizontalAlignment="Center"
+                                                                           FontWeight="Medium" />
                                                                 <TextBlock Text="选择工作表后将显示数据预览"
                                                                            Style="{StaticResource MD3BodyMedium}"
                                                                            Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
@@ -1153,56 +1207,61 @@
                                                                            Margin="0,8,0,0" />
                                                             </StackPanel>
 
-                                                            <!-- Data Display -->
+                                                            <!-- 主表数据显示 -->
                                                             <ScrollViewer
                                                                 Visibility="{Binding HasPrimaryPreviewData, 
-                                  Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                                                        Converter={StaticResource BooleanToVisibilityConverter}}"
                                                                 MaxHeight="500"
                                                                 Style="{StaticResource MD3ScrollViewer}">
                                                                 <StackPanel>
-                                                                    <!-- Single Worksheet Data -->
+                                                                    <!-- 数据网格 -->
                                                                     <DataGrid
                                                                         ItemsSource="{Binding PrimaryPreviewData}"
                                                                         Style="{StaticResource MD3DataGrid}"
                                                                         AutoGenerateColumns="True"
                                                                         IsReadOnly="True"
-                                                                        MaxHeight="400" />
+                                                                        MaxHeight="450"
+                                                                        materialDesign:DataGridAssist.CellPadding="8,4"
+                                                                        materialDesign:DataGridAssist.ColumnHeaderPadding="8,8" />
                                                                 </StackPanel>
                                                             </ScrollViewer>
                                                         </Grid>
                                                     </TabItem>
 
-                                                    <!-- Secondary Data Tab -->
+                                                    <!-- 辅助表数据标签页 -->
                                                     <TabItem Style="{StaticResource MD3TabItem}">
                                                         <TabItem.Header>
                                                             <StackPanel Orientation="Horizontal">
                                                                 <materialDesign:PackIcon Kind="Table"
-                                                                    Width="20" Height="20"
-                                                                    Margin="0,0,8,0" />
-                                                                <TextBlock Text="辅助表数据" />
+                                                                    Width="22" Height="22"
+                                                                    Margin="0,0,12,0" />
+                                                                <TextBlock Text="辅助表数据" FontWeight="Medium" />
+                                                                <!-- 工作表数量标识 -->
                                                                 <materialDesign:Chip
                                                                     Content="{Binding SelectedSecondaryWorksheets.Count, StringFormat='{}{0}个工作表'}"
-                                                                    Margin="8,0,0,0"
+                                                                    Margin="12,0,0,0"
                                                                     Style="{StaticResource MaterialDesignOutlineChip}"
-                                                                    FontSize="10"
+                                                                    FontSize="11"
                                                                     Visibility="{Binding SelectedSecondaryWorksheets.Count, 
-                                           Converter={StaticResource CountToVisibilityConverter}}" />
+                                                                                   Converter={StaticResource CountToVisibilityConverter}}" />
                                                             </StackPanel>
                                                         </TabItem.Header>
-                                                        <Grid Margin="0,16,0,0">
-                                                            <!-- Empty State -->
+                                                        <Grid Margin="0,20,0,0">
+                                                            <!-- 辅助表空状态 -->
                                                             <StackPanel VerticalAlignment="Center"
                                                                         HorizontalAlignment="Center"
+                                                                        Margin="0,60,0,60"
                                                                         Visibility="{Binding HasSecondaryPreviewData, 
-                              Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                                                                      Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                                                                 <materialDesign:PackIcon Kind="TableOff"
                                                                     Width="64" Height="64"
                                                                     Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                                    Margin="0,0,0,16" />
+                                                                    Margin="0,0,0,20" />
                                                                 <TextBlock Text="请先选择辅助表工作表"
                                                                            Style="{StaticResource MD3BodyLarge}"
                                                                            Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                                           HorizontalAlignment="Center" />
+                                                                           HorizontalAlignment="Center"
+                                                                           FontWeight="Medium" />
                                                                 <TextBlock Text="选择工作表后将显示数据预览"
                                                                            Style="{StaticResource MD3BodyMedium}"
                                                                            Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
@@ -1210,20 +1269,22 @@
                                                                            Margin="0,8,0,0" />
                                                             </StackPanel>
 
-                                                            <!-- Data Display -->
+                                                            <!-- 辅助表数据显示 -->
                                                             <ScrollViewer
                                                                 Visibility="{Binding HasSecondaryPreviewData, 
-                                  Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                                                        Converter={StaticResource BooleanToVisibilityConverter}}"
                                                                 MaxHeight="500"
                                                                 Style="{StaticResource MD3ScrollViewer}">
                                                                 <StackPanel>
-                                                                    <!-- Single Worksheet Data -->
+                                                                    <!-- 数据网格 -->
                                                                     <DataGrid
                                                                         ItemsSource="{Binding SecondaryPreviewData}"
                                                                         Style="{StaticResource MD3DataGrid}"
                                                                         AutoGenerateColumns="True"
                                                                         IsReadOnly="True"
-                                                                        MaxHeight="400" />
+                                                                        MaxHeight="450"
+                                                                        materialDesign:DataGridAssist.CellPadding="8,4"
+                                                                        materialDesign:DataGridAssist.ColumnHeaderPadding="8,8" />
                                                                 </StackPanel>
                                                             </ScrollViewer>
                                                         </Grid>
@@ -1231,106 +1292,108 @@
                                                 </TabControl>
                                             </ScrollViewer>
                                         </Grid>
-
-                                        
                                     </StackPanel>
                                 </materialDesign:Card>
 
                             </StackPanel>
                         </ScrollViewer>
 
-                        <!-- Bottom Action Bar -->
+                        <!-- 底部操作栏 -->
                         <materialDesign:ColorZone Grid.Row="2"
                                                   Mode="Custom"
                                                   Background="{StaticResource MD3SurfaceVariantBrush}"
                                                   Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                  CornerRadius="0,0,16,16"
-                                                  Padding="24,16">
+                                                  CornerRadius="0,0,20,20"
+                                                  Padding="32,20">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Status Information -->
+                                <!-- 状态信息区域 -->
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <!-- 主状态信息 -->
                                     <StackPanel Orientation="Horizontal">
                                         <materialDesign:PackIcon Kind="Information"
-                                                                 Width="16" Height="16"
+                                                                 Width="18" Height="18"
                                                                  VerticalAlignment="Center"
-                                                                 Margin="0,0,8,0" />
+                                                                 Margin="0,0,12,0" />
                                         <TextBlock Text="{Binding StatusMessage}"
-                                                   Style="{StaticResource MD3BodyMedium}" />
+                                                   Style="{StaticResource MD3BodyMedium}"
+                                                   FontWeight="Medium" />
                                     </StackPanel>
 
-                                    <!-- Progress Bar -->
+                                    <!-- 进度条 -->
                                     <ProgressBar Value="{Binding ProgressValue}"
                                                  Maximum="{Binding ProgressMaximum}"
-                                                 Height="4"
-                                                 Margin="0,8,0,0"
-                                                 Width="400"
+                                                 Height="6"
+                                                 Margin="0,12,0,0"
+                                                 Width="500"
                                                  HorizontalAlignment="Left"
                                                  Style="{StaticResource MaterialDesignLinearProgressBar}"
                                                  Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
-                                    <!-- Statistics -->
+                                    <!-- 统计信息 -->
                                     <StackPanel Orientation="Horizontal"
-                                                Margin="0,8,0,0"
+                                                Margin="0,12,0,0"
                                                 Visibility="{Binding IsBusy, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                        <!-- 主表行数 -->
                                         <materialDesign:Chip
                                             Content="{Binding PrimaryFile.RowCount, StringFormat='主表: {0}行'}"
                                             Style="{StaticResource MaterialDesignOutlineChip}"
-                                            FontSize="11"
-                                            Margin="0,0,8,0"
+                                            FontSize="12"
+                                            Margin="0,0,12,0"
                                             Visibility="{Binding PrimaryFile.IsLoaded, 
-                                                                   Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                                           Converter={StaticResource BooleanToVisibilityConverter}}" />
 
+                                        <!-- 辅助表行数 -->
                                         <materialDesign:Chip
                                             Content="{Binding SecondaryFile.RowCount, StringFormat='辅助表: {0}行'}"
                                             Style="{StaticResource MaterialDesignOutlineChip}"
-                                            FontSize="11"
-                                            Margin="0,0,8,0"
+                                            FontSize="12"
+                                            Margin="0,0,12,0"
                                             Visibility="{Binding SecondaryFile.IsLoaded, 
-                                                                   Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                                           Converter={StaticResource BooleanToVisibilityConverter}}" />
 
+                                        <!-- 字段映射数量 -->
                                         <materialDesign:Chip
                                             Content="{Binding FieldMappings.Count, StringFormat='{}{0}个映射'}"
                                             Style="{StaticResource MaterialDesignOutlineChip}"
-                                            FontSize="11"
+                                            FontSize="12"
+                                            Margin="0,0,12,0"
                                             Visibility="{Binding FieldMappings.Count, 
-                                                                   Converter={StaticResource CountToVisibilityConverter}}" />
+                                                                           Converter={StaticResource CountToVisibilityConverter}}" />
 
-                                        <!-- 预览状态提示 -->
-                                        <materialDesign:Chip Content="性能优化模式 - 预览已关闭"
+                                        <!-- 预览状态指示 -->
+                                        <materialDesign:Chip Content="性能优化模式"
                                                              Style="{StaticResource MaterialDesignOutlineChip}"
-                                                             FontSize="11"
-                                                             Margin="8,0,0,0"
+                                                             FontSize="12"
                                                              Background="{StaticResource MD3TertiaryContainerBrush}"
                                                              Foreground="{StaticResource MD3OnTertiaryContainerBrush}"
                                                              Visibility="{Binding IsPreviewEnabled, 
-                                     Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                                                                           Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
 
-                                        <materialDesign:Chip Content="预览模式 - 可查看数据内容"
+                                        <materialDesign:Chip Content="预览模式"
                                                              Style="{StaticResource MaterialDesignOutlineChip}"
-                                                             FontSize="11"
-                                                             Margin="8,0,0,0"
+                                                             FontSize="12"
                                                              Background="{StaticResource MD3PrimaryContainerBrush}"
                                                              Foreground="{StaticResource MD3OnPrimaryContainerBrush}"
                                                              Visibility="{Binding IsPreviewEnabled, 
-                                     Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                                           Converter={StaticResource BooleanToVisibilityConverter}}" />
                                     </StackPanel>
                                 </StackPanel>
 
-                                <!-- Action Buttons -->
+                                <!-- 操作按钮区域 -->
                                 <StackPanel Grid.Column="1"
                                             Orientation="Horizontal"
                                             VerticalAlignment="Center">
 
-                                    <!-- Diagnose Button -->
+                                    <!-- 诊断按钮 -->
                                     <Button Command="{Binding DiagnoseMatchingCommand}"
                                             Style="{StaticResource MD3TextButton}"
-                                            ToolTip="诊断匹配问题"
-                                            Margin="0,0,8,0">
+                                            ToolTip="诊断匹配问题，分析数据兼容性"
+                                            Margin="0,0,12,0">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="Microscope"
                                                                      Width="18" Height="18"
@@ -1339,10 +1402,11 @@
                                         </StackPanel>
                                     </Button>
 
-                                    <!-- Save Configuration Button -->
+                                    <!-- 保存配置按钮 -->
                                     <Button Command="{Binding SaveConfigurationCommand}"
                                             Style="{StaticResource MD3OutlinedButton}"
-                                            Margin="0,0,8,0">
+                                            ToolTip="保存当前配置以便后续使用"
+                                            Margin="0,0,12,0">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="ContentSave"
                                                                      Width="18" Height="18"
@@ -1351,10 +1415,11 @@
                                         </StackPanel>
                                     </Button>
 
-                                    <!-- Load Configuration Button -->
+                                    <!-- 加载配置按钮 -->
                                     <Button Command="{Binding LoadConfigurationCommand}"
                                             Style="{StaticResource MD3OutlinedButton}"
-                                            Margin="0,0,8,0">
+                                            ToolTip="加载已保存的配置"
+                                            Margin="0,0,12,0">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="FolderOpen"
                                                                      Width="18" Height="18"
@@ -1363,10 +1428,11 @@
                                         </StackPanel>
                                     </Button>
 
-                                    <!-- Reset Button -->
+                                    <!-- 重置按钮 -->
                                     <Button Command="{Binding ResetConfigurationCommand}"
                                             Style="{StaticResource MD3OutlinedButton}"
-                                            Margin="0,0,16,0">
+                                            ToolTip="重置所有设置到默认状态"
+                                            Margin="0,0,20,0">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="Refresh"
                                                                      Width="18" Height="18"
@@ -1375,12 +1441,13 @@
                                         </StackPanel>
                                     </Button>
 
-                                    <!-- Start Merge Button -->
+                                    <!-- 开始合并按钮 -->
                                     <Button Command="{Binding StartMergeCommand}"
                                             Style="{StaticResource MD3FilledButton}"
                                             Padding="32,12"
                                             FontSize="16"
-                                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}">
+                                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
+                                            ToolTip="开始执行数据合并操作">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="PlayArrow"
                                                                      Width="20" Height="20"
@@ -1394,31 +1461,32 @@
                     </Grid>
                 </Border>
 
-                <!-- Loading Overlay -->
-                <Grid Background="#E0000000"
+                <!-- 加载遮罩层 -->
+                <Grid Background="#F0000000"
                       Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
 
-                    <!-- Loading Card -->
+                    <!-- 加载状态卡片 -->
                     <materialDesign:Card HorizontalAlignment="Center"
                                          VerticalAlignment="Center"
                                          Style="{StaticResource MD3ElevatedCard}"
-                                         Padding="48"
-                                         MinWidth="400"
-                                         MaxWidth="600">
+                                         Padding="60"
+                                         MinWidth="480"
+                                         MaxWidth="700"
+                                         materialDesign:ElevationAssist.Elevation="Dp12">
                         <StackPanel>
-                            <!-- Loading Animation -->
-                            <Grid HorizontalAlignment="Center" Margin="0,0,0,32">
-                                <!-- Outer Ring -->
-                                <Ellipse Width="80" Height="80"
+                            <!-- 加载动画区域 -->
+                            <Grid HorizontalAlignment="Center" Margin="0,0,0,40">
+                                <!-- 外圈 -->
+                                <Ellipse Width="96" Height="96"
                                          Stroke="{StaticResource MD3PrimaryBrush}"
                                          StrokeThickness="2"
                                          Opacity="0.2" />
 
-                                <!-- Inner Animated Ring -->
-                                <Ellipse Width="80" Height="80"
+                                <!-- 内圈动画 -->
+                                <Ellipse Width="96" Height="96"
                                          Stroke="{StaticResource MD3PrimaryBrush}"
-                                         StrokeThickness="4"
-                                         StrokeDashArray="20,60"
+                                         StrokeThickness="5"
+                                         StrokeDashArray="24,72"
                                          RenderTransformOrigin="0.5,0.5">
                                     <Ellipse.RenderTransform>
                                         <RotateTransform x:Name="LoadingRotateTransform" />
@@ -1442,34 +1510,35 @@
                                     </Ellipse.Triggers>
                                 </Ellipse>
 
-                                <!-- Center Icon -->
+                                <!-- 中心图标 -->
                                 <materialDesign:PackIcon Kind="TableMergeCells"
-                                                         Width="32" Height="32"
+                                                         Width="40" Height="40"
                                                          Foreground="{StaticResource MD3PrimaryBrush}"
                                                          HorizontalAlignment="Center"
                                                          VerticalAlignment="Center" />
                             </Grid>
 
-                            <!-- Status Text -->
+                            <!-- 状态文本 -->
                             <TextBlock Text="{Binding StatusMessage}"
-                                       Style="{StaticResource MD3TitleMedium}"
+                                       Style="{StaticResource MD3TitleLarge}"
                                        HorizontalAlignment="Center"
                                        TextWrapping="Wrap"
-                                       Margin="0,0,0,24" />
+                                       FontWeight="Medium"
+                                       Margin="0,0,0,32" />
 
-                            <!-- Progress Bar -->
+                            <!-- 进度条 -->
                             <ProgressBar Value="{Binding ProgressValue}"
                                          Maximum="{Binding ProgressMaximum}"
                                          Height="8"
                                          Style="{StaticResource MaterialDesignLinearProgressBar}"
                                          materialDesign:TransitionAssist.DisableTransitions="False" />
 
-                            <!-- Progress Text -->
+                            <!-- 进度文本 -->
                             <StackPanel Orientation="Horizontal"
                                         HorizontalAlignment="Center"
-                                        Margin="0,16,0,0">
-                                <TextBlock Style="{StaticResource MD3BodyMedium}">
-                                    <Run Text="进度: " />
+                                        Margin="0,20,0,0">
+                                <TextBlock Style="{StaticResource MD3BodyLarge}">
+                                    <Run Text="处理进度: " />
                                     <Run Text="{Binding ProgressValue, Mode=OneWay}" FontWeight="Medium" />
                                     <Run Text=" / " />
                                     <Run Text="{Binding ProgressMaximum, Mode=OneWay}" FontWeight="Medium" />
@@ -1477,23 +1546,23 @@
 
                                 <TextBlock
                                     Text="{Binding ProgressValue, Mode=OneWay, 
-                                             Converter={StaticResource ProgressToPercentageConverter}}"
-                                    Style="{StaticResource MD3BodyMedium}"
+                                                   Converter={StaticResource ProgressToPercentageConverter}}"
+                                    Style="{StaticResource MD3BodyLarge}"
                                     FontWeight="Medium"
-                                    Margin="16,0,0,0" />
+                                    Margin="20,0,0,0" />
                             </StackPanel>
 
-                            <!-- Additional Info -->
+                            <!-- 提示信息 -->
                             <materialDesign:Card Style="{StaticResource MD3OutlinedCard}"
                                                  Background="{StaticResource MD3TertiaryContainerBrush}"
-                                                 Margin="0,24,0,0">
+                                                 Margin="0,32,0,0">
                                 <StackPanel Orientation="Horizontal">
                                     <materialDesign:PackIcon Kind="InformationOutline"
-                                                             Width="16" Height="16"
+                                                             Width="18" Height="18"
                                                              Foreground="{StaticResource MD3OnTertiaryContainerBrush}"
-                                                             Margin="0,0,8,0" />
-                                    <TextBlock Text="请耐心等待，处理大量数据可能需要一些时间..."
-                                               Style="{StaticResource MD3BodySmall}"
+                                                             Margin="0,0,12,0" />
+                                    <TextBlock Text="正在处理大量数据，请耐心等待..."
+                                               Style="{StaticResource MD3BodyMedium}"
                                                Foreground="{StaticResource MD3OnTertiaryContainerBrush}" />
                                 </StackPanel>
                             </materialDesign:Card>
@@ -1501,12 +1570,12 @@
                     </materialDesign:Card>
                 </Grid>
 
-                <!-- Snackbar Host -->
+                <!-- 消息提示栏 -->
                 <materialDesign:Snackbar x:Name="MainSnackbar"
                                          MessageQueue="{materialDesign:MessageQueue}"
                                          VerticalAlignment="Bottom"
                                          HorizontalAlignment="Center"
-                                         Margin="0,0,0,100" />
+                                         Margin="0,0,0,120" />
 
             </Grid>
         </materialDesign:DialogHost>

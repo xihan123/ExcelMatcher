@@ -20,118 +20,162 @@ using Microsoft.Win32;
 namespace ExcelMatcher.ViewModels;
 
 /// <summary>
-///     主窗体视图模型
+/// 主窗体视图模型类
+/// 负责处理Excel文件的加载、配置、数据预览和合并操作
+/// 实现MVVM模式，提供数据绑定和命令支持
 /// </summary>
 public class MainViewModel : BaseViewModel
 {
-    // 命令字段
-    private readonly RelayCommand _addFieldMappingCommand;
-    private readonly RelayCommand _addPrimaryFilterCommand;
-    private readonly RelayCommand _addSecondaryFilterCommand;
-    private readonly AsyncRelayCommand _browsePrimaryFileCommand;
-    private readonly AsyncRelayCommand _browseSecondaryFileCommand;
-    private readonly ConfigurationManager _configurationManager;
-    private readonly AsyncRelayCommand<Configuration> _deleteConfigurationCommand;
-    private readonly RelayCommand _clearPrimaryFileCommand;
-    private readonly RelayCommand _clearSecondaryFileCommand;
-    public ICommand ClearPrimaryFileCommand => _clearPrimaryFileCommand;
-    public ICommand ClearSecondaryFileCommand => _clearSecondaryFileCommand;
+    private bool _isDragOver;
 
-    /// <summary>
-    ///     诊断匹配问题命令
-    /// </summary>
-    private readonly AsyncRelayCommand _diagnoseMatchingCommand;
-
-    private readonly ExcelFileManager _excelFileManager;
-    private readonly AsyncRelayCommand _loadConfigurationCommand;
-    private readonly AsyncRelayCommand _loadPrimaryFileCommand;
-    private readonly AsyncRelayCommand _loadSecondaryFileCommand;
-    private readonly RelayCommand _openConfigurationDirectoryCommand;
-
-    /// <summary>
-    ///     刷新Excel文件数据
-    /// </summary>
-    private readonly AsyncRelayCommand _refreshDataCommand;
-
-    private readonly RelayCommand<FieldMapping> _removeFieldMappingCommand;
-    private readonly RelayCommand<FilterCondition> _removePrimaryFilterCommand;
-    private readonly RelayCommand<FilterCondition> _removeSecondaryFilterCommand;
-    private readonly RelayCommand _resetConfigurationCommand;
-    private readonly AsyncRelayCommand _saveConfigurationCommand;
-    private readonly AsyncRelayCommand _startMergeCommand;
-    private readonly RelayCommand<IList> _updateSelectedPrimaryMatchFieldsCommand;
-    private readonly RelayCommand<IList> _updateSelectedPrimaryWorksheetsCommand;
-    private readonly RelayCommand<IList> _updateSelectedSecondaryMatchFieldsCommand;
-    private readonly RelayCommand<IList> _updateSelectedSecondaryWorksheetsCommand;
-    private ObservableCollection<FieldMapping> _fieldMappings;
-    private bool _isBusy;
-    private ObservableCollection<string> _primaryColumns;
-
-    // 主表文件相关属性
-    private ExcelFile _primaryFile = new();
-    private string _primaryFilePassword = string.Empty;
-    private string _primaryFilePath = string.Empty;
-
-    // 数据筛选相关属性
-    private ObservableCollection<FilterCondition> _primaryFilters;
-    private DataTable? _primaryPreviewData;
-    private ObservableCollection<string> _primaryWorksheets;
-    private int _progressMaximum = 100;
-
-
-    // 进度和状态相关属性
-    private int _progressValue;
-    private ObservableCollection<string> _secondaryColumns;
-
-    // 辅助表文件相关属性
-    private ExcelFile _secondaryFile = new();
-    private string _secondaryFilePassword = string.Empty;
-    private string _secondaryFilePath = string.Empty;
-    private ObservableCollection<FilterCondition> _secondaryFilters;
-    private DataTable? _secondaryPreviewData;
-    private ObservableCollection<string> _secondaryWorksheets;
-
-    // 字段匹配相关属性
-    private ObservableCollection<string> _selectedPrimaryMatchFields;
-    private string _selectedPrimaryWorksheet = string.Empty;
-    private ObservableCollection<string> _selectedPrimaryWorksheets;
-    private ObservableCollection<string> _selectedSecondaryMatchFields;
-    private string _selectedSecondaryWorksheet = string.Empty;
-    private ObservableCollection<string> _selectedSecondaryWorksheets;
-    private string _statusMessage = "准备就绪";
-
-    // 预览开关属性
-    private bool _isPreviewEnabled = true;
-
-    public bool IsPreviewEnabled
+    public bool IsDragOver
     {
-        get => _isPreviewEnabled;
-        set
-        {
-            if (SetProperty(ref _isPreviewEnabled, value))
-            {
-                // 当预览被禁用时清空预览数据
-                if (!value)
-                {
-                    PrimaryPreviewData = null;
-                    SecondaryPreviewData = null;
-                }
-                // 当预览被启用时重新加载预览数据
-                else if (PrimaryFile?.IsLoaded == true && SecondaryFile?.IsLoaded == true)
-                {
-                    LoadPreviewDataWithFiltersAsync().ConfigureAwait(false);
-                }
-            }
-        }
+        get => _isDragOver;
+        set => SetProperty(ref _isDragOver, value);
     }
 
-    // 构造函数
+    #region 私有字段
+
+    // === 服务注入字段 ===
+    private readonly ExcelFileManager _excelFileManager;
+    private readonly ConfigurationManager _configurationManager;
+
+    // === 命令字段 ===
+    private readonly AsyncRelayCommand _browsePrimaryFileCommand;
+    private readonly AsyncRelayCommand _browseSecondaryFileCommand;
+    private readonly AsyncRelayCommand _loadPrimaryFileCommand;
+    private readonly AsyncRelayCommand _loadSecondaryFileCommand;
+    private readonly RelayCommand _clearPrimaryFileCommand;
+    private readonly RelayCommand _clearSecondaryFileCommand;
+    private readonly AsyncRelayCommand _refreshDataCommand;
+    private readonly AsyncRelayCommand _diagnoseMatchingCommand;
+    private readonly RelayCommand _addFieldMappingCommand;
+    private readonly RelayCommand<FieldMapping> _removeFieldMappingCommand;
+    private readonly RelayCommand _addPrimaryFilterCommand;
+    private readonly RelayCommand<FilterCondition> _removePrimaryFilterCommand;
+    private readonly RelayCommand _addSecondaryFilterCommand;
+    private readonly RelayCommand<FilterCondition> _removeSecondaryFilterCommand;
+    private readonly AsyncRelayCommand _startMergeCommand;
+    private readonly AsyncRelayCommand _saveConfigurationCommand;
+    private readonly AsyncRelayCommand _loadConfigurationCommand;
+    private readonly RelayCommand _resetConfigurationCommand;
+    private readonly AsyncRelayCommand<Configuration> _deleteConfigurationCommand;
+    private readonly RelayCommand _openConfigurationDirectoryCommand;
+
+    // === 列表选择更新命令 ===
+    private readonly RelayCommand<IList> _updateSelectedPrimaryMatchFieldsCommand;
+    private readonly RelayCommand<IList> _updateSelectedSecondaryMatchFieldsCommand;
+    private readonly RelayCommand<IList> _updateSelectedPrimaryWorksheetsCommand;
+    private readonly RelayCommand<IList> _updateSelectedSecondaryWorksheetsCommand;
+
+    // === 文件数据字段 ===
+    private ExcelFile _primaryFile = new();
+    private string _primaryFilePath = string.Empty;
+    private string _primaryFilePassword = string.Empty;
+    private ExcelFile _secondaryFile = new();
+    private string _secondaryFilePath = string.Empty;
+    private string _secondaryFilePassword = string.Empty;
+
+    // === 工作表和列数据集合 ===
+    private ObservableCollection<string> _primaryWorksheets = new();
+    private ObservableCollection<string> _secondaryWorksheets = new();
+    private ObservableCollection<string> _primaryColumns = new();
+    private ObservableCollection<string> _secondaryColumns = new();
+
+    // === 选择状态集合 ===
+    private string _selectedPrimaryWorksheet = string.Empty;
+    private string _selectedSecondaryWorksheet = string.Empty;
+    private ObservableCollection<string> _selectedPrimaryWorksheets = new();
+    private ObservableCollection<string> _selectedSecondaryWorksheets = new();
+    private ObservableCollection<string> _selectedPrimaryMatchFields = new();
+    private ObservableCollection<string> _selectedSecondaryMatchFields = new();
+
+    // === 字段映射和筛选条件 ===
+    private ObservableCollection<FieldMapping> _fieldMappings = new();
+    private ObservableCollection<FilterCondition> _primaryFilters = new();
+    private ObservableCollection<FilterCondition> _secondaryFilters = new();
+
+    // === 预览数据 ===
+    private DataTable? _primaryPreviewData;
+    private DataTable? _secondaryPreviewData;
+
+    // === 状态管理字段 ===
+    private bool _isBusy;
+    private int _progressValue;
+    private int _progressMaximum = 100;
+    private string _statusMessage = "准备就绪";
+    private bool _isPreviewEnabled = true;
+
+    #endregion
+
+    #region 构造函数
+
+    /// <summary>
+    ///     初始化MainViewModel实例
+    /// </summary>
+    /// <param name="excelFileManager">Excel文件管理服务</param>
+    /// <param name="configurationManager">配置管理服务</param>
+    /// <exception cref="ArgumentNullException">当服务参数为空时抛出</exception>
     public MainViewModel(ExcelFileManager excelFileManager, ConfigurationManager configurationManager)
     {
+        // 验证依赖注入参数
         _excelFileManager = excelFileManager ?? throw new ArgumentNullException(nameof(excelFileManager));
         _configurationManager = configurationManager ?? throw new ArgumentNullException(nameof(configurationManager));
 
-        // 初始化集合
+        // 初始化数据集合
+        InitializeCollections();
+
+        // 初始化命令
+        // 文件操作命令
+        _browsePrimaryFileCommand = new AsyncRelayCommand(BrowsePrimaryFileAsync, CanExecuteWhenNotBusy);
+        _browseSecondaryFileCommand = new AsyncRelayCommand(BrowseSecondaryFileAsync, CanExecuteWhenNotBusy);
+        _loadPrimaryFileCommand = new AsyncRelayCommand(() => LoadPrimaryFileAsync(), CanExecuteWhenNotBusy);
+        _loadSecondaryFileCommand = new AsyncRelayCommand(() => LoadSecondaryFileAsync(), CanExecuteWhenNotBusy);
+        _clearPrimaryFileCommand = new RelayCommand(ClearPrimaryFile, CanExecuteWhenNotBusy);
+        _clearSecondaryFileCommand = new RelayCommand(ClearSecondaryFile, CanExecuteWhenNotBusy);
+
+        // 数据操作命令
+        _refreshDataCommand = new AsyncRelayCommand(RefreshDataAsync, CanRefreshData);
+        _diagnoseMatchingCommand = new AsyncRelayCommand(DiagnoseMatchingAsync, CanDiagnoseMatching);
+
+        // 字段映射命令
+        _addFieldMappingCommand = new RelayCommand(AddFieldMapping, CanAddFieldMapping);
+        _removeFieldMappingCommand = new RelayCommand<FieldMapping>(RemoveFieldMapping);
+
+        // 筛选条件命令
+        _addPrimaryFilterCommand = new RelayCommand(AddPrimaryFilter, CanAddPrimaryFilter);
+        _removePrimaryFilterCommand = new RelayCommand<FilterCondition>(RemovePrimaryFilter);
+        _addSecondaryFilterCommand = new RelayCommand(AddSecondaryFilter, CanAddSecondaryFilter);
+        _removeSecondaryFilterCommand = new RelayCommand<FilterCondition>(RemoveSecondaryFilter);
+
+        // 核心业务命令
+        _startMergeCommand = new AsyncRelayCommand(StartMergeAsync, CanStartMerge);
+
+        // 配置管理命令
+        _saveConfigurationCommand = new AsyncRelayCommand(SaveConfigurationAsync, CanExecuteWhenNotBusy);
+        _loadConfigurationCommand = new AsyncRelayCommand(LoadConfigurationAsync, CanExecuteWhenNotBusy);
+        _resetConfigurationCommand = new RelayCommand(ResetConfiguration, CanExecuteWhenNotBusy);
+        _deleteConfigurationCommand = new AsyncRelayCommand<Configuration>(DeleteConfigurationAsync);
+        _openConfigurationDirectoryCommand = new RelayCommand(OpenConfigurationDirectory, CanExecuteWhenNotBusy);
+
+        // 列表选择更新命令
+        _updateSelectedPrimaryMatchFieldsCommand = new RelayCommand<IList>(UpdateSelectedPrimaryMatchFields);
+        _updateSelectedSecondaryMatchFieldsCommand = new RelayCommand<IList>(UpdateSelectedSecondaryMatchFields);
+        _updateSelectedPrimaryWorksheetsCommand = new RelayCommand<IList>(UpdateSelectedPrimaryWorksheets);
+        _updateSelectedSecondaryWorksheetsCommand = new RelayCommand<IList>(UpdateSelectedSecondaryWorksheets);
+
+        // 设置事件监听器
+        SetupEventListeners();
+
+        // 记录初始化完成
+        LogDebug("MainViewModel 初始化完成");
+    }
+
+    /// <summary>
+    ///     初始化所有ObservableCollection集合
+    /// </summary>
+    private void InitializeCollections()
+    {
         _primaryWorksheets = new ObservableCollection<string>();
         _secondaryWorksheets = new ObservableCollection<string>();
         _primaryColumns = new ObservableCollection<string>();
@@ -143,304 +187,370 @@ public class MainViewModel : BaseViewModel
         _fieldMappings = new ObservableCollection<FieldMapping>();
         _primaryFilters = new ObservableCollection<FilterCondition>();
         _secondaryFilters = new ObservableCollection<FilterCondition>();
-
-        // 初始化命令
-        _browsePrimaryFileCommand = new AsyncRelayCommand(BrowsePrimaryFileAsync);
-        _browseSecondaryFileCommand = new AsyncRelayCommand(BrowseSecondaryFileAsync);
-        _loadPrimaryFileCommand = new AsyncRelayCommand(() => LoadPrimaryFileAsync());
-        _loadSecondaryFileCommand = new AsyncRelayCommand(() => LoadSecondaryFileAsync());
-        _addFieldMappingCommand = new RelayCommand(AddFieldMapping, CanAddFieldMapping);
-        _refreshDataCommand = new AsyncRelayCommand(RefreshDataAsync, CanRefreshData);
-        _diagnoseMatchingCommand = new AsyncRelayCommand(DiagnoseMatchingAsync, CanDiagnoseMatching);
-        _removeFieldMappingCommand = new RelayCommand<FieldMapping>(RemoveFieldMapping);
-        _addPrimaryFilterCommand = new RelayCommand(AddPrimaryFilter, CanAddPrimaryFilter);
-        _removePrimaryFilterCommand = new RelayCommand<FilterCondition>(RemovePrimaryFilter);
-        _addSecondaryFilterCommand = new RelayCommand(AddSecondaryFilter, CanAddSecondaryFilter);
-        _removeSecondaryFilterCommand = new RelayCommand<FilterCondition>(RemoveSecondaryFilter);
-        _startMergeCommand = new AsyncRelayCommand(StartMergeAsync, CanStartMerge);
-        _deleteConfigurationCommand = new AsyncRelayCommand<Configuration>(DeleteConfigurationAsync);
-        _openConfigurationDirectoryCommand = new RelayCommand(OpenConfigurationDirectory);
-        _saveConfigurationCommand = new AsyncRelayCommand(SaveConfigurationAsync);
-        _loadConfigurationCommand = new AsyncRelayCommand(LoadConfigurationAsync);
-        _resetConfigurationCommand = new RelayCommand(ResetConfiguration);
-        _clearPrimaryFileCommand = new RelayCommand(ClearPrimaryFile);
-        _clearSecondaryFileCommand = new RelayCommand(ClearSecondaryFile);
-
-        _updateSelectedPrimaryMatchFieldsCommand = new RelayCommand<IList>(UpdateSelectedPrimaryMatchFields);
-        _updateSelectedSecondaryMatchFieldsCommand = new RelayCommand<IList>(UpdateSelectedSecondaryMatchFields);
-        _updateSelectedPrimaryWorksheetsCommand = new RelayCommand<IList>(UpdateSelectedPrimaryWorksheets);
-        _updateSelectedSecondaryWorksheetsCommand = new RelayCommand<IList>(UpdateSelectedSecondaryWorksheets);
-
-        // 添加筛选条件变更监听，用于自动刷新预览
-        _primaryFilters.CollectionChanged += FilterConditionsCollectionChanged;
-        _secondaryFilters.CollectionChanged += FilterConditionsCollectionChanged;
     }
 
-    public ICommand RefreshDataCommand => _refreshDataCommand;
-    public ICommand DiagnoseMatchingCommand => _diagnoseMatchingCommand;
+    /// <summary>
+    ///     设置事件监听器
+    /// </summary>
+    private void SetupEventListeners()
+    {
+        // 监听筛选条件集合变化，自动刷新预览
+        _primaryFilters.CollectionChanged += OnFilterConditionsCollectionChanged;
+        _secondaryFilters.CollectionChanged += OnFilterConditionsCollectionChanged;
+    }
 
-    #region 属性
+    #endregion
 
-    // 主表文件属性
+    #region 公共属性
+
+    // === 文件数据属性 ===
+
+    /// <summary>
+    ///     主表Excel文件对象
+    /// </summary>
     public ExcelFile PrimaryFile
     {
         get => _primaryFile;
         set => SetProperty(ref _primaryFile, value);
     }
 
+    /// <summary>
+    ///     主表文件路径
+    /// </summary>
     public string PrimaryFilePath
     {
         get => _primaryFilePath;
         set => SetProperty(ref _primaryFilePath, value);
     }
 
+    /// <summary>
+    ///     主表文件密码
+    /// </summary>
     public string PrimaryFilePassword
     {
         get => _primaryFilePassword;
         set => SetProperty(ref _primaryFilePassword, value);
     }
 
-    public string SelectedPrimaryWorksheet
-    {
-        get => _selectedPrimaryWorksheet;
-        set
-        {
-            if (SetProperty(ref _selectedPrimaryWorksheet, value) && !string.IsNullOrEmpty(value))
-                // 工作表变更后，加载工作表信息
-                LoadPrimaryWorksheetInfoAsync().ConfigureAwait(false);
-        }
-    }
-
-    public ObservableCollection<string> PrimaryWorksheets
-    {
-        get => _primaryWorksheets;
-        set => SetProperty(ref _primaryWorksheets, value);
-    }
-
-    public ObservableCollection<string> SelectedPrimaryWorksheets
-    {
-        get => _selectedPrimaryWorksheets;
-        set => SetProperty(ref _selectedPrimaryWorksheets, value);
-    }
-
-    public ObservableCollection<string> PrimaryColumns
-    {
-        get => _primaryColumns;
-        set
-        {
-            if (SetProperty(ref _primaryColumns, value)) NotifyCommandsCanExecuteChanged();
-        }
-    }
-
-    public DataTable? PrimaryPreviewData
-    {
-        get => _primaryPreviewData;
-        set => SetProperty(ref _primaryPreviewData, value);
-    }
-
-    // 辅助表文件属性
+    /// <summary>
+    ///     辅助表Excel文件对象
+    /// </summary>
     public ExcelFile SecondaryFile
     {
         get => _secondaryFile;
         set => SetProperty(ref _secondaryFile, value);
     }
 
+    /// <summary>
+    ///     辅助表文件路径
+    /// </summary>
     public string SecondaryFilePath
     {
         get => _secondaryFilePath;
         set => SetProperty(ref _secondaryFilePath, value);
     }
 
+    /// <summary>
+    ///     辅助表文件密码
+    /// </summary>
     public string SecondaryFilePassword
     {
         get => _secondaryFilePassword;
         set => SetProperty(ref _secondaryFilePassword, value);
     }
 
-    public string SelectedSecondaryWorksheet
+    // === 工作表选择属性 ===
+
+    /// <summary>
+    ///     主表工作表列表
+    /// </summary>
+    public ObservableCollection<string> PrimaryWorksheets
     {
-        get => _selectedSecondaryWorksheet;
+        get => _primaryWorksheets;
+        set => SetProperty(ref _primaryWorksheets, value);
+    }
+
+    /// <summary>
+    ///     当前选中的主表工作表（单选兼容）
+    /// </summary>
+    public string SelectedPrimaryWorksheet
+    {
+        get => _selectedPrimaryWorksheet;
         set
         {
-            if (SetProperty(ref _selectedSecondaryWorksheet, value) && !string.IsNullOrEmpty(value))
-                // 工作表变更后，加载工作表信息
-                LoadSecondaryWorksheetInfoAsync().ConfigureAwait(false);
+            if (SetProperty(ref _selectedPrimaryWorksheet, value) && !string.IsNullOrEmpty(value))
+                // 工作表变更后，异步加载工作表信息
+                _ = LoadPrimaryWorksheetInfoAsync();
         }
     }
 
+    /// <summary>
+    ///     选中的主表工作表列表（多选）
+    /// </summary>
+    public ObservableCollection<string> SelectedPrimaryWorksheets
+    {
+        get => _selectedPrimaryWorksheets;
+        set => SetProperty(ref _selectedPrimaryWorksheets, value);
+    }
+
+    /// <summary>
+    ///     辅助表工作表列表
+    /// </summary>
     public ObservableCollection<string> SecondaryWorksheets
     {
         get => _secondaryWorksheets;
         set => SetProperty(ref _secondaryWorksheets, value);
     }
 
+    /// <summary>
+    ///     当前选中的辅助表工作表（单选兼容）
+    /// </summary>
+    public string SelectedSecondaryWorksheet
+    {
+        get => _selectedSecondaryWorksheet;
+        set
+        {
+            if (SetProperty(ref _selectedSecondaryWorksheet, value) && !string.IsNullOrEmpty(value))
+                // 工作表变更后，异步加载工作表信息
+                _ = LoadSecondaryWorksheetInfoAsync();
+        }
+    }
+
+    /// <summary>
+    ///     选中的辅助表工作表列表（多选）
+    /// </summary>
     public ObservableCollection<string> SelectedSecondaryWorksheets
     {
         get => _selectedSecondaryWorksheets;
         set => SetProperty(ref _selectedSecondaryWorksheets, value);
     }
 
+    // === 列数据属性 ===
+
+    /// <summary>
+    ///     主表列名集合
+    /// </summary>
+    public ObservableCollection<string> PrimaryColumns
+    {
+        get => _primaryColumns;
+        set
+        {
+            if (SetProperty(ref _primaryColumns, value))
+                // 列数据变化时通知命令状态更新
+                NotifyCommandsCanExecuteChanged();
+        }
+    }
+
+    /// <summary>
+    ///     辅助表列名集合
+    /// </summary>
     public ObservableCollection<string> SecondaryColumns
     {
         get => _secondaryColumns;
         set
         {
-            if (SetProperty(ref _secondaryColumns, value)) NotifyCommandsCanExecuteChanged();
+            if (SetProperty(ref _secondaryColumns, value))
+                // 列数据变化时通知命令状态更新
+                NotifyCommandsCanExecuteChanged();
         }
     }
 
-    public DataTable? SecondaryPreviewData
-    {
-        get => _secondaryPreviewData;
-        set => SetProperty(ref _secondaryPreviewData, value);
-    }
+    // === 字段匹配属性 ===
 
-    // 字段匹配属性
+    /// <summary>
+    ///     选中的主表匹配字段
+    /// </summary>
     public ObservableCollection<string> SelectedPrimaryMatchFields
     {
         get => _selectedPrimaryMatchFields;
         set => SetProperty(ref _selectedPrimaryMatchFields, value);
     }
 
+    /// <summary>
+    ///     选中的辅助表匹配字段
+    /// </summary>
     public ObservableCollection<string> SelectedSecondaryMatchFields
     {
         get => _selectedSecondaryMatchFields;
         set => SetProperty(ref _selectedSecondaryMatchFields, value);
     }
 
+    /// <summary>
+    ///     字段映射配置列表
+    /// </summary>
     public ObservableCollection<FieldMapping> FieldMappings
     {
         get => _fieldMappings;
         set => SetProperty(ref _fieldMappings, value);
     }
 
-    // 数据筛选属性
+    // === 数据筛选属性 ===
+
+    /// <summary>
+    ///     主表筛选条件列表
+    /// </summary>
     public ObservableCollection<FilterCondition> PrimaryFilters
     {
         get => _primaryFilters;
         set => SetProperty(ref _primaryFilters, value);
     }
 
+    /// <summary>
+    ///     辅助表筛选条件列表
+    /// </summary>
     public ObservableCollection<FilterCondition> SecondaryFilters
     {
         get => _secondaryFilters;
         set => SetProperty(ref _secondaryFilters, value);
     }
 
-    // 进度和状态属性
+    // === 预览数据属性 ===
+
+    /// <summary>
+    ///     主表预览数据
+    /// </summary>
+    public DataTable? PrimaryPreviewData
+    {
+        get => _primaryPreviewData;
+        set => SetProperty(ref _primaryPreviewData, value);
+    }
+
+    /// <summary>
+    ///     辅助表预览数据
+    /// </summary>
+    public DataTable? SecondaryPreviewData
+    {
+        get => _secondaryPreviewData;
+        set => SetProperty(ref _secondaryPreviewData, value);
+    }
+
+    // === 状态管理属性 ===
+
+    /// <summary>
+    ///     是否正在执行操作（忙碌状态）
+    /// </summary>
+    public bool IsBusy
+    {
+        get => _isBusy;
+        set
+        {
+            if (SetProperty(ref _isBusy, value))
+                // 忙碌状态变化时通知所有命令更新状态
+                NotifyCommandsCanExecuteChanged();
+        }
+    }
+
+    /// <summary>
+    ///     当前进度值
+    /// </summary>
     public int ProgressValue
     {
         get => _progressValue;
         set => SetProperty(ref _progressValue, value);
     }
 
+    /// <summary>
+    ///     进度最大值
+    /// </summary>
     public int ProgressMaximum
     {
         get => _progressMaximum;
         set => SetProperty(ref _progressMaximum, value);
     }
 
+    /// <summary>
+    ///     状态消息
+    /// </summary>
     public string StatusMessage
     {
         get => _statusMessage;
         set => SetProperty(ref _statusMessage, value);
     }
 
-    public bool IsBusy
+    /// <summary>
+    ///     是否启用数据预览
+    /// </summary>
+    public bool IsPreviewEnabled
     {
-        get => _isBusy;
+        get => _isPreviewEnabled;
         set
         {
-            if (SetProperty(ref _isBusy, value)) NotifyCommandsCanExecuteChanged();
+            if (SetProperty(ref _isPreviewEnabled, value)) HandlePreviewModeChanged(value);
         }
     }
 
-    // 过滤器操作符选项
-    public IEnumerable<FilterOperator> FilterOperators => Enum.GetValues(typeof(FilterOperator)).Cast<FilterOperator>();
-
-    // 逻辑操作符选项
-    public IEnumerable<LogicalOperator> LogicalOperators =>
-        Enum.GetValues(typeof(LogicalOperator)).Cast<LogicalOperator>();
+    // === 只读计算属性 ===
 
     /// <summary>
-    ///     是否有主表预览数据
+    /// 是否有主表预览数据
     /// </summary>
     public bool HasPrimaryPreviewData => PrimaryPreviewData != null && PrimaryPreviewData.Rows.Count > 0;
 
     /// <summary>
-    ///     是否有辅助表预览数据
+    /// 是否有辅助表预览数据
     /// </summary>
     public bool HasSecondaryPreviewData => SecondaryPreviewData != null && SecondaryPreviewData.Rows.Count > 0;
 
     /// <summary>
-    ///     主表文件是否无效
+    /// 主表文件是否无效
     /// </summary>
     public bool IsPrimaryFileInvalid =>
         !string.IsNullOrEmpty(PrimaryFilePath) && (PrimaryFile == null || !PrimaryFile.IsLoaded);
 
     /// <summary>
-    ///     辅助表文件是否无效
+    /// 辅助表文件是否无效
     /// </summary>
     public bool IsSecondaryFileInvalid =>
         !string.IsNullOrEmpty(SecondaryFilePath) && (SecondaryFile == null || !SecondaryFile.IsLoaded);
 
-    /// <summary>
-    ///     通知UI相关属性已更改
-    /// </summary>
-    private void NotifyUIPropertiesChanged()
-    {
-        OnPropertyChanged(nameof(HasPrimaryPreviewData));
-        OnPropertyChanged(nameof(HasSecondaryPreviewData));
-        OnPropertyChanged(nameof(IsPrimaryFileInvalid));
-        OnPropertyChanged(nameof(IsSecondaryFileInvalid));
-    }
+    // === 枚举选项属性 ===
 
     /// <summary>
-    ///     重写属性更改通知以包含UI属性
+    /// 筛选操作符选项
     /// </summary>
-    protected override void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        base.OnPropertyChanged(propertyName);
+    public IEnumerable<FilterOperator> FilterOperators => Enum.GetValues(typeof(FilterOperator)).Cast<FilterOperator>();
 
-        // 当相关属性变更时，通知UI属性也已变更
-        if (propertyName == nameof(PrimaryPreviewData) ||
-            propertyName == nameof(SecondaryPreviewData) ||
-            propertyName == nameof(PrimaryFile) ||
-            propertyName == nameof(SecondaryFile) ||
-            propertyName == nameof(PrimaryFilePath) ||
-            propertyName == nameof(SecondaryFilePath))
-            NotifyUIPropertiesChanged();
-    }
+    /// <summary>
+    /// 逻辑操作符选项
+    /// </summary>
+    public IEnumerable<LogicalOperator> LogicalOperators =>
+        Enum.GetValues(typeof(LogicalOperator)).Cast<LogicalOperator>();
 
     #endregion
 
-    #region 命令
+    #region 公共命令
 
-    // 文件浏览命令
+    // === 文件操作命令 ===
     public ICommand BrowsePrimaryFileCommand => _browsePrimaryFileCommand;
     public ICommand BrowseSecondaryFileCommand => _browseSecondaryFileCommand;
-
-    // 加载文件命令
     public ICommand LoadPrimaryFileCommand => _loadPrimaryFileCommand;
     public ICommand LoadSecondaryFileCommand => _loadSecondaryFileCommand;
+    public ICommand ClearPrimaryFileCommand => _clearPrimaryFileCommand;
+    public ICommand ClearSecondaryFileCommand => _clearSecondaryFileCommand;
 
-    // 字段映射命令
+    // === 数据操作命令 ===
+    public ICommand RefreshDataCommand => _refreshDataCommand;
+    public ICommand DiagnoseMatchingCommand => _diagnoseMatchingCommand;
+
+    // === 字段映射命令 ===
     public ICommand AddFieldMappingCommand => _addFieldMappingCommand;
     public ICommand RemoveFieldMappingCommand => _removeFieldMappingCommand;
 
-    // 筛选条件命令
+    // === 筛选条件命令 ===
     public ICommand AddPrimaryFilterCommand => _addPrimaryFilterCommand;
     public ICommand RemovePrimaryFilterCommand => _removePrimaryFilterCommand;
     public ICommand AddSecondaryFilterCommand => _addSecondaryFilterCommand;
     public ICommand RemoveSecondaryFilterCommand => _removeSecondaryFilterCommand;
 
-    // 合并和配置命令
+    // === 核心业务命令 ===
     public ICommand StartMergeCommand => _startMergeCommand;
+
+    // === 配置管理命令 ===
     public ICommand SaveConfigurationCommand => _saveConfigurationCommand;
     public ICommand LoadConfigurationCommand => _loadConfigurationCommand;
     public ICommand ResetConfigurationCommand => _resetConfigurationCommand;
 
-    // ListBox选择更新命令
+    // === 列表选择更新命令 ===
     public ICommand UpdateSelectedPrimaryMatchFieldsCommand => _updateSelectedPrimaryMatchFieldsCommand;
     public ICommand UpdateSelectedSecondaryMatchFieldsCommand => _updateSelectedSecondaryMatchFieldsCommand;
     public ICommand UpdateSelectedPrimaryWorksheetsCommand => _updateSelectedPrimaryWorksheetsCommand;
@@ -448,10 +558,993 @@ public class MainViewModel : BaseViewModel
 
     #endregion
 
-    #region 命令实现
+    #region 命令执行条件方法
 
     /// <summary>
-    ///     删除配置
+    ///     检查是否可以在非忙碌状态下执行命令
+    /// </summary>
+    /// <returns>非忙碌状态返回true</returns>
+    private bool CanExecuteWhenNotBusy()
+    {
+        return !IsBusy;
+    }
+
+    /// <summary>
+    ///     检查是否可以刷新数据
+    /// </summary>
+    /// <returns>有文件路径且非忙碌状态返回true</returns>
+    private bool CanRefreshData()
+    {
+        return (!string.IsNullOrEmpty(PrimaryFilePath) || !string.IsNullOrEmpty(SecondaryFilePath)) && !IsBusy;
+    }
+
+    /// <summary>
+    ///     检查是否可以诊断匹配
+    /// </summary>
+    /// <returns>文件已加载且匹配字段已配置返回true</returns>
+    private bool CanDiagnoseMatching()
+    {
+        return PrimaryFile != null && PrimaryFile.IsLoaded &&
+               SecondaryFile != null && SecondaryFile.IsLoaded &&
+               SelectedPrimaryMatchFields.Count > 0 &&
+               SelectedSecondaryMatchFields.Count > 0 &&
+               SelectedPrimaryMatchFields.Count == SelectedSecondaryMatchFields.Count &&
+               !IsBusy;
+    }
+
+    /// <summary>
+    ///     检查是否可以添加字段映射
+    /// </summary>
+    /// <returns>辅助表有列数据且非忙碌状态返回true</returns>
+    private bool CanAddFieldMapping()
+    {
+        return SecondaryColumns != null && SecondaryColumns.Count > 0 && !IsBusy;
+    }
+
+    /// <summary>
+    ///     检查是否可以添加主表筛选条件
+    /// </summary>
+    /// <returns>主表有列数据且非忙碌状态返回true</returns>
+    private bool CanAddPrimaryFilter()
+    {
+        return PrimaryColumns != null && PrimaryColumns.Count > 0 && !IsBusy;
+    }
+
+    /// <summary>
+    ///     检查是否可以添加辅助表筛选条件
+    /// </summary>
+    /// <returns>辅助表有列数据且非忙碌状态返回true</returns>
+    private bool CanAddSecondaryFilter()
+    {
+        return SecondaryColumns != null && SecondaryColumns.Count > 0 && !IsBusy;
+    }
+
+    /// <summary>
+    ///     检查是否可以开始合并
+    /// </summary>
+    /// <returns>文件已加载且配置完整返回true</returns>
+    private bool CanStartMerge()
+    {
+        return PrimaryFile != null && PrimaryFile.IsLoaded &&
+               SecondaryFile != null && SecondaryFile.IsLoaded &&
+               SelectedPrimaryWorksheets.Count > 0 &&
+               SelectedSecondaryWorksheets.Count > 0 &&
+               SelectedPrimaryMatchFields.Count > 0 &&
+               SelectedSecondaryMatchFields.Count > 0 &&
+               FieldMappings.Count > 0 &&
+               !IsBusy;
+    }
+
+    #endregion
+
+    #region 文件操作方法
+
+    /// <summary>
+    ///     浏览选择主表文件
+    /// </summary>
+    private async Task BrowsePrimaryFileAsync()
+    {
+        try
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "Excel文件|*.xlsx;*.xls|所有文件|*.*",
+                Title = "选择主表Excel文件",
+                CheckFileExists = true
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                PrimaryFilePath = openFileDialog.FileName;
+                await LoadPrimaryFileAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync("浏览主表文件时出错", ex);
+        }
+    }
+
+    /// <summary>
+    ///     浏览选择辅助表文件
+    /// </summary>
+    private async Task BrowseSecondaryFileAsync()
+    {
+        try
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "Excel文件|*.xlsx;*.xls|所有文件|*.*",
+                Title = "选择辅助表Excel文件",
+                CheckFileExists = true
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                SecondaryFilePath = openFileDialog.FileName;
+                await LoadSecondaryFileAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync("浏览辅助表文件时出错", ex);
+        }
+    }
+
+    /// <summary>
+    ///     加载主表文件
+    /// </summary>
+    /// <param name="isRefresh">是否为刷新操作</param>
+    private async Task LoadPrimaryFileAsync(bool isRefresh = false)
+    {
+        if (string.IsNullOrEmpty(PrimaryFilePath))
+            return;
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "正在加载主表文件...";
+
+            // 如果是刷新操作，先关闭之前的文件
+            if (isRefresh && PrimaryFile?.IsLoaded == true)
+            {
+                await CloseFileWithGarbageCollection(PrimaryFile);
+                PrimaryFile = new ExcelFile();
+            }
+
+            // 重置相关数据
+            ResetPrimaryFileData(isRefresh);
+
+            // 加载文件
+            PrimaryFile = await _excelFileManager.LoadExcelFileAsync(PrimaryFilePath, PrimaryFilePassword);
+
+            // 更新UI数据
+            UpdatePrimaryFileUI();
+
+            // 检查文件大小
+            CheckFileSize();
+
+            StatusMessage = $"主表文件已加载，共{PrimaryFile.WorksheetCount}个工作表";
+            LogDebug($"主表文件加载成功: {PrimaryFilePath}");
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync("加载主表文件时出错", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    ///     加载辅助表文件
+    /// </summary>
+    /// <param name="isRefresh">是否为刷新操作</param>
+    private async Task LoadSecondaryFileAsync(bool isRefresh = false)
+    {
+        if (string.IsNullOrEmpty(SecondaryFilePath))
+            return;
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "正在加载辅助表文件...";
+
+            // 如果是刷新操作，先关闭之前的文件
+            if (isRefresh && SecondaryFile?.IsLoaded == true)
+            {
+                await CloseFileWithGarbageCollection(SecondaryFile);
+                SecondaryFile = new ExcelFile();
+            }
+
+            // 重置相关数据
+            ResetSecondaryFileData(isRefresh);
+
+            // 加载文件
+            SecondaryFile = await _excelFileManager.LoadExcelFileAsync(SecondaryFilePath, SecondaryFilePassword);
+
+            // 更新UI数据
+            UpdateSecondaryFileUI();
+
+            // 检查文件大小
+            CheckFileSize();
+
+            StatusMessage = $"辅助表文件已加载，共{SecondaryFile.WorksheetCount}个工作表";
+            LogDebug($"辅助表文件加载成功: {SecondaryFilePath}");
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync("加载辅助表文件时出错", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    ///     清除主表文件
+    /// </summary>
+    private void ClearPrimaryFile()
+    {
+        try
+        {
+            PrimaryFilePath = string.Empty;
+            PrimaryFilePassword = string.Empty;
+            PrimaryFile = new ExcelFile();
+
+            // 清空相关集合
+            PrimaryWorksheets.Clear();
+            PrimaryColumns.Clear();
+            SelectedPrimaryWorksheets.Clear();
+            SelectedPrimaryMatchFields.Clear();
+            PrimaryPreviewData = null;
+            PrimaryFilters.Clear();
+
+            StatusMessage = "已清除主表文件";
+            LogDebug("主表文件已清除");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"清除主表文件时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     清除辅助表文件
+    /// </summary>
+    private void ClearSecondaryFile()
+    {
+        try
+        {
+            SecondaryFilePath = string.Empty;
+            SecondaryFilePassword = string.Empty;
+            SecondaryFile = new ExcelFile();
+
+            // 清空相关集合
+            SecondaryWorksheets.Clear();
+            SecondaryColumns.Clear();
+            SelectedSecondaryWorksheets.Clear();
+            SelectedSecondaryMatchFields.Clear();
+            SecondaryPreviewData = null;
+            SecondaryFilters.Clear();
+            FieldMappings.Clear(); // 清除字段映射
+
+            StatusMessage = "已清除辅助表文件";
+            LogDebug("辅助表文件已清除");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"清除辅助表文件时出错: {ex.Message}");
+        }
+    }
+
+    #endregion
+
+    #region 数据刷新和诊断方法
+
+    /// <summary>
+    ///     刷新数据
+    /// </summary>
+    private async Task RefreshDataAsync()
+    {
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "正在刷新数据...";
+
+            // 记录当前选择状态
+            var currentSelections = SaveCurrentSelections();
+
+            // 强制关闭并释放资源
+            await ForceCloseAllFiles();
+
+            // 等待资源完全释放
+            await Task.Delay(500);
+
+            // 重新加载文件
+            await ReloadFilesAsync();
+
+            // 恢复选择状态
+            await RestoreSelections(currentSelections);
+
+            // 验证和更新字段映射
+            ValidateAndUpdateFieldMappings();
+
+            // 刷新预览数据
+            await LoadPreviewDataWithFiltersAsync();
+
+            StatusMessage = "数据已刷新";
+            LogDebug("数据刷新完成");
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync("刷新数据时出错", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            NotifyCommandsCanExecuteChanged();
+        }
+    }
+
+    /// <summary>
+    ///     诊断匹配问题
+    /// </summary>
+    private async Task DiagnoseMatchingAsync()
+    {
+        if (!ValidateMatchingParameters())
+            return;
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "正在诊断匹配问题...";
+
+            var result = await _excelFileManager.DiagnoseMatchFieldsAsync(
+                PrimaryFile,
+                SecondaryFile,
+                SelectedPrimaryMatchFields.ToList(),
+                SelectedSecondaryMatchFields.ToList());
+
+            // 使用原始的MD3风格对话框显示诊断结果
+            await ShowDiagnosisResultDialogAsync(result);
+
+            StatusMessage = "诊断完成";
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync("诊断匹配问题时出错", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    #endregion
+
+    #region 字段映射管理方法
+
+    /// <summary>
+    ///     添加字段映射
+    /// </summary>
+    private void AddFieldMapping()
+    {
+        try
+        {
+            var mapping = new FieldMapping
+            {
+                SourceField = SecondaryColumns.FirstOrDefault() ?? string.Empty,
+                TargetField = string.Empty
+            };
+
+            // 监听属性变更
+            if (mapping is INotifyPropertyChanged notifyMapping)
+                notifyMapping.PropertyChanged += OnFieldMappingPropertyChanged;
+
+            FieldMappings.Add(mapping);
+            NotifyCommandsCanExecuteChanged();
+
+            LogDebug($"添加字段映射: {mapping.SourceField} -> {mapping.TargetField}");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"添加字段映射时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     移除字段映射
+    /// </summary>
+    /// <param name="mapping">要移除的字段映射</param>
+    private void RemoveFieldMapping(FieldMapping? mapping)
+    {
+        if (mapping == null) return;
+
+        try
+        {
+            // 移除属性变更监听
+            if (mapping is INotifyPropertyChanged notifyMapping)
+                notifyMapping.PropertyChanged -= OnFieldMappingPropertyChanged;
+
+            FieldMappings.Remove(mapping);
+            NotifyCommandsCanExecuteChanged();
+
+            LogDebug($"移除字段映射: {mapping.SourceField} -> {mapping.TargetField}");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"移除字段映射时出错: {ex.Message}");
+        }
+    }
+
+    #endregion
+
+    #region 筛选条件管理方法
+
+    /// <summary>
+    ///     添加主表筛选条件
+    /// </summary>
+    private void AddPrimaryFilter()
+    {
+        if (PrimaryColumns.Count == 0) return;
+
+        try
+        {
+            var filter = new FilterCondition
+            {
+                Field = PrimaryColumns.FirstOrDefault() ?? string.Empty,
+                Operator = FilterOperator.Equals,
+                Value = string.Empty,
+                LogicalOperator = LogicalOperator.And
+            };
+
+            // 监听属性变更
+            if (filter is INotifyPropertyChanged notifyFilter)
+                notifyFilter.PropertyChanged += OnFilterConditionPropertyChanged;
+
+            PrimaryFilters.Add(filter);
+            LogDebug($"添加主表筛选条件: {filter.Field} {filter.Operator} {filter.Value}");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"添加主表筛选条件时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     移除主表筛选条件
+    /// </summary>
+    /// <param name="filter">要移除的筛选条件</param>
+    private void RemovePrimaryFilter(FilterCondition? filter)
+    {
+        if (filter == null) return;
+
+        try
+        {
+            // 移除属性变更监听
+            if (filter is INotifyPropertyChanged notifyFilter)
+                notifyFilter.PropertyChanged -= OnFilterConditionPropertyChanged;
+
+            PrimaryFilters.Remove(filter);
+            LogDebug($"移除主表筛选条件: {filter.Field} {filter.Operator} {filter.Value}");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"移除主表筛选条件时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     添加辅助表筛选条件
+    /// </summary>
+    private void AddSecondaryFilter()
+    {
+        if (SecondaryColumns.Count == 0) return;
+
+        try
+        {
+            var filter = new FilterCondition
+            {
+                Field = SecondaryColumns.FirstOrDefault() ?? string.Empty,
+                Operator = FilterOperator.Equals,
+                Value = string.Empty,
+                LogicalOperator = LogicalOperator.And
+            };
+
+            // 监听属性变更
+            if (filter is INotifyPropertyChanged notifyFilter)
+                notifyFilter.PropertyChanged += OnFilterConditionPropertyChanged;
+
+            SecondaryFilters.Add(filter);
+            LogDebug($"添加辅助表筛选条件: {filter.Field} {filter.Operator} {filter.Value}");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"添加辅助表筛选条件时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     移除辅助表筛选条件
+    /// </summary>
+    /// <param name="filter">要移除的筛选条件</param>
+    private void RemoveSecondaryFilter(FilterCondition? filter)
+    {
+        if (filter == null) return;
+
+        try
+        {
+            // 移除属性变更监听
+            if (filter is INotifyPropertyChanged notifyFilter)
+                notifyFilter.PropertyChanged -= OnFilterConditionPropertyChanged;
+
+            SecondaryFilters.Remove(filter);
+            LogDebug($"移除辅助表筛选条件: {filter.Field} {filter.Operator} {filter.Value}");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"移除辅助表筛选条件时出错: {ex.Message}");
+        }
+    }
+
+    #endregion
+
+    #region 数据合并核心方法
+
+    /// <summary>
+    ///     开始数据合并操作
+    /// </summary>
+    private async Task StartMergeAsync()
+    {
+        if (!ValidateMergeParameters())
+            return;
+
+        var startTime = DateTime.Now;
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "准备开始合并数据...";
+            ProgressValue = 0;
+
+            // 检查文件变更
+            var needRefresh = await CheckForFileChangesAsync();
+            if (needRefresh)
+            {
+                var shouldRefresh = await ShowRefreshConfirmationDialogAsync();
+                if (shouldRefresh)
+                {
+                    await RefreshDataAsync();
+                    if (!ValidateMergeParameters()) return;
+                }
+            }
+
+            // 设置进度报告
+            var progress = CreateProgressReporter();
+
+            // 执行合并
+            var result = await ExecuteMergeAsync(progress);
+
+            // 显示结果
+            var duration = DateTime.Now - startTime;
+            await ShowMergeResultDialogAsync(result, duration);
+
+            // 更新文件检查时间
+            UpdateFileCheckTimes();
+
+            StatusMessage = "合并完成";
+            LogDebug($"数据合并完成，耗时: {FormatDuration(duration)}");
+        }
+        catch (Exception ex)
+        {
+            await HandleMergeErrorAsync(ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    #endregion
+
+    #region 配置管理方法
+
+    /// <summary>
+    ///     保存配置 - 使用原始MD3风格对话框
+    /// </summary>
+    private async Task SaveConfigurationAsync()
+    {
+        try
+        {
+            var config = CreateConfigurationFromCurrentState();
+
+            // 创建Material Design 3风格的配置名称输入对话框
+            var configNameContent = new StackPanel { Margin = new Thickness(24) };
+
+            // 添加标题
+            configNameContent.Children.Add(new TextBlock
+            {
+                Text = "保存配置",
+                FontSize = 18,
+                FontWeight = FontWeights.Medium,
+                Margin = new Thickness(0, 0, 0, 24)
+            });
+
+            // 添加说明文字
+            configNameContent.Children.Add(new TextBlock
+            {
+                Text = "请输入配置名称:",
+                Margin = new Thickness(0, 0, 0, 16)
+            });
+
+            // 添加输入框
+            var textBox = new TextBox
+            {
+                Text = config.Name,
+                Style = Application.Current.Resources["MaterialDesignOutlinedTextBox"] as Style,
+                Margin = new Thickness(0, 0, 0, 24)
+            };
+            HintAssist.SetHint(textBox, "配置名称");
+            configNameContent.Children.Add(textBox);
+
+            // 添加按钮
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            var cancelButton = new Button
+            {
+                Content = "取消",
+                Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+
+            var saveButton = new Button
+            {
+                Content = "保存",
+                Style = Application.Current.Resources["MaterialDesignRaisedButton"] as Style,
+                IsDefault = true
+            };
+
+            buttonPanel.Children.Add(cancelButton);
+            buttonPanel.Children.Add(saveButton);
+            configNameContent.Children.Add(buttonPanel);
+
+            // 显示对话框
+            var dialogResult = false;
+
+            cancelButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
+            saveButton.Click += (s, e) =>
+            {
+                dialogResult = true;
+                DialogHost.Close("RootDialog");
+            };
+
+            await DialogHost.Show(configNameContent, "RootDialog");
+
+            if (!dialogResult)
+                return;
+
+            config.Name = textBox.Text;
+            if (string.IsNullOrEmpty(config.Name))
+                config.Name = $"配置_{DateTime.Now:yyyyMMddHHmmss}";
+
+            StatusMessage = "正在保存配置...";
+            IsBusy = true;
+
+            var filePath = await _configurationManager.SaveConfigurationAsync(config);
+
+            // 显示成功消息 - 使用MD3风格
+            await ShowSuccessDialogAsync("保存成功", $"配置已保存到：{filePath}");
+
+            StatusMessage = "配置已保存";
+            LogDebug($"配置保存成功: {filePath}");
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync("保存配置时出错", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    ///     加载配置 - 使用原始MD3风格对话框
+    /// </summary>
+    private async Task LoadConfigurationAsync()
+    {
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "正在获取配置列表...";
+
+            var configurations = await _configurationManager.GetAllConfigurationsAsync();
+
+            if (configurations.Count == 0)
+            {
+                await ShowNoConfigurationsDialogAsync();
+                return;
+            }
+
+            // 创建配置选择对话框 - 保持原始MD3风格
+            var dialogContent = new StackPanel { Margin = new Thickness(24) };
+
+            // 添加标题
+            dialogContent.Children.Add(new TextBlock
+            {
+                Text = "选择配置",
+                FontSize = 18,
+                FontWeight = FontWeights.Medium,
+                Margin = new Thickness(0, 0, 0, 24)
+            });
+
+            // 添加配置列表容器
+            var cardContainer = new Card
+            {
+                Style = Application.Current.Resources["MD3ListContainer"] as Style,
+                Margin = new Thickness(0, 0, 0, 24),
+                MaxHeight = 300
+            };
+
+            // 添加配置列表
+            var listBox = new ListBox
+            {
+                Style = Application.Current.Resources["MD3ListBox"] as Style,
+                SelectionMode = SelectionMode.Single
+            };
+
+            foreach (var configuration in configurations)
+            {
+                var configItem = new ListBoxItem
+                {
+                    Tag = configuration.Path
+                };
+
+                // 创建配置项内容
+                var itemGrid = new Grid();
+                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var contentPanel = new StackPanel { Orientation = Orientation.Vertical };
+
+                var titleBlock = new TextBlock
+                {
+                    Text = configuration.Name,
+                    FontWeight = FontWeights.Medium,
+                    Margin = new Thickness(0, 0, 0, 4)
+                };
+
+                var dateBlock = new TextBlock
+                {
+                    Text = $"创建于 {File.GetCreationTime(configuration.Path):yyyy-MM-dd HH:mm:ss}",
+                    FontSize = 12,
+                    Foreground = new SolidColorBrush(Colors.Gray)
+                };
+
+                contentPanel.Children.Add(titleBlock);
+                contentPanel.Children.Add(dateBlock);
+
+                // 删除按钮
+                var deleteButton = new Button
+                {
+                    Style = Application.Current.Resources["MaterialDesignIconButton"] as Style,
+                    ToolTip = "删除此配置",
+                    Margin = new Thickness(8, 0, 0, 0)
+                };
+
+                var deleteIcon = new PackIcon
+                {
+                    Kind = PackIconKind.DeleteOutline,
+                    Width = 20,
+                    Height = 20,
+                    Foreground = new SolidColorBrush(Colors.Red)
+                };
+
+                deleteButton.Content = deleteIcon;
+
+                // 删除按钮事件处理
+                deleteButton.Click += async (s, e) =>
+                {
+                    e.Handled = true; // 防止触发ListBoxItem选择
+
+                    // 执行删除操作
+                    await DeleteConfigurationAsync(configuration);
+
+                    // 如果删除成功，重新加载配置列表
+                    if (!File.Exists(configuration.Path)) // 文件已被删除
+                    {
+                        // 关闭当前对话框
+                        DialogHost.Close("RootDialog");
+
+                        // 等待对话框完全关闭后重新打开
+                        await Task.Delay(100);
+                        await LoadConfigurationAsync();
+                    }
+                };
+
+                Grid.SetColumn(contentPanel, 0);
+                Grid.SetColumn(deleteButton, 1);
+
+                itemGrid.Children.Add(contentPanel);
+                itemGrid.Children.Add(deleteButton);
+
+                configItem.Content = itemGrid;
+                listBox.Items.Add(configItem);
+            }
+
+            // 选择第一项
+            if (listBox.Items.Count > 0)
+                listBox.SelectedIndex = 0;
+
+            cardContainer.Content = listBox;
+            dialogContent.Children.Add(cardContainer);
+
+            // 添加按钮
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            var openDirButton = new Button
+            {
+                Content = "打开目录",
+                Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+
+            var cancelButton = new Button
+            {
+                Content = "取消",
+                Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+
+            var selectButton = new Button
+            {
+                Content = "选择",
+                Style = Application.Current.Resources["MaterialDesignOutlinedLightButton"] as Style,
+                IsDefault = true
+            };
+
+            buttonPanel.Children.Add(openDirButton);
+            buttonPanel.Children.Add(cancelButton);
+            buttonPanel.Children.Add(selectButton);
+            dialogContent.Children.Add(buttonPanel);
+
+            // 显示对话框
+            var dialogResult = false;
+
+            openDirButton.Click += (s, e) => { OpenConfigurationDirectory(); };
+            cancelButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
+            selectButton.Click += (s, e) =>
+            {
+                dialogResult = true;
+                DialogHost.Close("RootDialog");
+            };
+
+            await DialogHost.Show(dialogContent, "RootDialog");
+
+            if (!dialogResult || listBox.SelectedItem == null)
+                return;
+
+            var configPath = ((ListBoxItem)listBox.SelectedItem).Tag as string;
+            if (string.IsNullOrEmpty(configPath))
+                return;
+
+            StatusMessage = "正在加载配置...";
+            var config = await _configurationManager.LoadConfigurationAsync(configPath);
+
+            // 应用配置
+            await ApplyConfigurationAsync(config);
+
+            StatusMessage = $"配置 '{config.Name}' 已加载";
+            LogDebug($"配置加载成功: {config.Name}");
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync("加载配置时出错", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    ///     重置配置 - 使用原始MD3风格对话框
+    /// </summary>
+    private void ResetConfiguration()
+    {
+        try
+        {
+            // 使用MD3风格对话框确认重置
+            var dialogContent = new StackPanel { Margin = new Thickness(16) };
+
+            dialogContent.Children.Add(new TextBlock
+            {
+                Text = "确定要重置所有配置吗？",
+                FontSize = 16,
+                Margin = new Thickness(0, 0, 0, 8)
+            });
+
+            dialogContent.Children.Add(new TextBlock
+            {
+                Text = "这将清除当前的所有设置。",
+                Opacity = 0.7,
+                Margin = new Thickness(0, 0, 0, 16)
+            });
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            var cancelButton = new Button
+            {
+                Content = "取消",
+                Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+
+            var confirmButton = new Button
+            {
+                Content = "确定",
+                Style = Application.Current.Resources["MaterialDesignRaisedButton"] as Style
+            };
+
+            buttonPanel.Children.Add(cancelButton);
+            buttonPanel.Children.Add(confirmButton);
+            dialogContent.Children.Add(buttonPanel);
+
+            // 显示对话框
+            var dialogResult = false;
+
+            // 使用Material Design的DialogHost
+            cancelButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
+            confirmButton.Click += (s, e) =>
+            {
+                dialogResult = true;
+                DialogHost.Close("RootDialog");
+            };
+
+            DialogHost.Show(dialogContent, "RootDialog").ContinueWith(t =>
+            {
+                if (dialogResult)
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        try
+                        {
+                            PerformReset();
+                            StatusMessage = "已重置所有配置";
+                            NotifyCommandsCanExecuteChanged();
+                            LogDebug("配置重置完成");
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"重置配置时出错: {ex.Message}", "错误",
+                                MessageBoxButton.OK, MessageBoxImage.Error);
+                            LogDebug($"重置配置异常: {ex}");
+                        }
+                    });
+            });
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"重置配置对话框时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 删除配置 - 保持原始MD3风格对话框实现
     /// </summary>
     private async Task DeleteConfigurationAsync(Configuration? configuration)
     {
@@ -472,14 +1565,13 @@ public class MainViewModel : BaseViewModel
 
             // 警告图标
             var warningIcon = new PackIcon
-                {
-                    Kind = PackIconKind.AlertOutline,
-                    Width = 28,
-                    Height = 28,
-                    Foreground = new SolidColorBrush(Color.FromRgb(255, 152, 0)), // Orange
-                    VerticalAlignment = VerticalAlignment.Center
-                }
-                ;
+            {
+                Kind = PackIconKind.AlertOutline,
+                Width = 28,
+                Height = 28,
+                Foreground = new SolidColorBrush(Color.FromRgb(255, 152, 0)), // Orange
+                VerticalAlignment = VerticalAlignment.Center
+            };
             titlePanel.Children.Add(warningIcon);
 
             // 标题文本
@@ -567,62 +1659,9 @@ public class MainViewModel : BaseViewModel
             if (success)
             {
                 // 创建成功消息对话框
-                var successContent = new StackPanel { Margin = new Thickness(24), MinWidth = 350 };
-
-                // 成功标题区域
-                var successTitlePanel = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Margin = new Thickness(0, 0, 0, 20)
-                };
-
-                var successIcon = new PackIcon
-                    {
-                        Kind = PackIconKind.CheckCircleOutline,
-                        Width = 28,
-                        Height = 28,
-                        Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)), // Green
-                        VerticalAlignment = VerticalAlignment.Center
-                    }
-                    ;
-                successTitlePanel.Children.Add(successIcon);
-
-                var successTitleText = new TextBlock
-                {
-                    Text = "删除成功",
-                    FontSize = 20,
-                    FontWeight = FontWeights.Medium,
-                    Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(12, 0, 0, 0)
-                };
-                successTitlePanel.Children.Add(successTitleText);
-                successContent.Children.Add(successTitlePanel);
-
-                var successMessageText = new TextBlock
-                {
-                    Text = $"配置 \"{configuration.Name}\" 已成功删除。",
-                    FontSize = 14,
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 0, 0, 32)
-                };
-                successContent.Children.Add(successMessageText);
-
-                var successOkButton = new Button
-                {
-                    Content = "确定",
-                    Style = Application.Current.Resources["MD3FilledButton"] as Style,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    MinWidth = 88,
-                    IsDefault = true
-                };
-
-                successOkButton.Click += (s, e) => { DialogHost.Close("ConfirmDialog"); };
-                successContent.Children.Add(successOkButton);
-
-                await DialogHost.Show(successContent, "ConfirmDialog");
-
+                await ShowDeleteSuccessDialogAsync(configuration.Name);
                 StatusMessage = "配置删除完成";
+                LogDebug($"配置删除成功: {configuration.Name}");
             }
             else
             {
@@ -631,64 +1670,9 @@ public class MainViewModel : BaseViewModel
         }
         catch (Exception ex)
         {
-            // 创建错误消息对话框
-            var errorContent = new StackPanel { Margin = new Thickness(24), MinWidth = 400 };
-
-            // 错误标题区域
-            var errorTitlePanel = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 0, 0, 20)
-            };
-
-            var errorIcon = new PackIcon
-                {
-                    Kind = PackIconKind.AlertCircleOutline,
-                    Width = 28,
-                    Height = 28,
-                    Foreground = new SolidColorBrush(Color.FromRgb(244, 67, 54)), // Red
-                    VerticalAlignment = VerticalAlignment.Center
-                }
-                ;
-            errorTitlePanel.Children.Add(errorIcon);
-
-            var errorTitleText = new TextBlock
-            {
-                Text = "删除失败",
-                FontSize = 20,
-                FontWeight = FontWeights.Medium,
-                Foreground = new SolidColorBrush(Color.FromRgb(244, 67, 54)),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(12, 0, 0, 0)
-            };
-            errorTitlePanel.Children.Add(errorTitleText);
-            errorContent.Children.Add(errorTitlePanel);
-
-            var errorMessageText = new TextBlock
-            {
-                Text = $"删除配置时出错: {ex.Message}",
-                FontSize = 14,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 32)
-            };
-            errorContent.Children.Add(errorMessageText);
-
-            var errorOkButton = new Button
-            {
-                Content = "确定",
-                Style = Application.Current.Resources["MD3OutlinedButton"] as Style,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                MinWidth = 88,
-                IsDefault = true
-            };
-
-            errorOkButton.Click += (s, e) => { DialogHost.Close("ConfirmDialog"); };
-            errorContent.Children.Add(errorOkButton);
-
-            await DialogHost.Show(errorContent, "ConfirmDialog");
-
+            await ShowDeleteErrorDialogAsync(ex.Message);
             StatusMessage = "删除配置失败";
-            Debug.WriteLine($"删除配置异常: {ex}");
+            LogDebug($"删除配置异常: {ex}");
         }
         finally
         {
@@ -697,7 +1681,7 @@ public class MainViewModel : BaseViewModel
     }
 
     /// <summary>
-    ///     打开配置文件目录
+    /// 打开配置文件目录
     /// </summary>
     private void OpenConfigurationDirectory()
     {
@@ -705,242 +1689,374 @@ public class MainViewModel : BaseViewModel
         {
             _configurationManager.OpenConfigurationDirectory();
             StatusMessage = "已打开配置文件目录";
+            LogDebug("配置目录已打开");
         }
         catch (Exception ex)
         {
             MessageBox.Show($"打开配置目录时出错: {ex.Message}", "错误",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             StatusMessage = "打开配置目录失败";
-            Debug.WriteLine($"打开配置目录异常: {ex}");
+            LogDebug($"打开配置目录异常: {ex}");
         }
     }
 
-    // 通知所有命令重新检查可执行状态
-    private void NotifyCommandsCanExecuteChanged()
-    {
-        _addFieldMappingCommand?.NotifyCanExecuteChanged();
-        _addPrimaryFilterCommand?.NotifyCanExecuteChanged();
-        _addSecondaryFilterCommand?.NotifyCanExecuteChanged();
-        _startMergeCommand?.NotifyCanExecuteChanged();
-    }
+    #endregion
 
-    // 处理筛选条件变更，自动刷新预览
-    private void FilterConditionsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        // 当筛选条件集合发生变化时，刷新预览数据
-        if (e.Action != NotifyCollectionChangedAction.Move) LoadPreviewDataWithFiltersAsync().ConfigureAwait(false);
-    }
+    #region 列表选择更新方法
 
-    // 监听筛选条件属性变更
-    private void FilterCondition_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        // 当筛选条件属性变更时，刷新预览数据
-        LoadPreviewDataWithFiltersAsync().ConfigureAwait(false);
-    }
-
-    // 更新主表选中字段
+    /// <summary>
+    ///     更新主表选中匹配字段
+    /// </summary>
+    /// <param name="items">选中的项目列表</param>
     private void UpdateSelectedPrimaryMatchFields(IList items)
     {
         if (items == null) return;
 
-        SelectedPrimaryMatchFields.Clear();
-        foreach (var item in items) SelectedPrimaryMatchFields.Add(item.ToString());
-        NotifyCommandsCanExecuteChanged();
+        try
+        {
+            SelectedPrimaryMatchFields.Clear();
+            foreach (var item in items)
+                if (item != null)
+                    SelectedPrimaryMatchFields.Add(item.ToString() ?? string.Empty);
+
+            NotifyCommandsCanExecuteChanged();
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"更新主表匹配字段时出错: {ex.Message}");
+        }
     }
 
-    // 更新辅助表选中字段
+    /// <summary>
+    ///     更新辅助表选中匹配字段
+    /// </summary>
+    /// <param name="items">选中的项目列表</param>
     private void UpdateSelectedSecondaryMatchFields(IList items)
     {
         if (items == null) return;
 
-        SelectedSecondaryMatchFields.Clear();
-        foreach (var item in items) SelectedSecondaryMatchFields.Add(item.ToString());
-        NotifyCommandsCanExecuteChanged();
+        try
+        {
+            SelectedSecondaryMatchFields.Clear();
+            foreach (var item in items)
+                if (item != null)
+                    SelectedSecondaryMatchFields.Add(item.ToString() ?? string.Empty);
+
+            NotifyCommandsCanExecuteChanged();
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"更新辅助表匹配字段时出错: {ex.Message}");
+        }
     }
 
-    // 更新主表选中工作表
+    /// <summary>
+    ///     更新主表选中工作表
+    /// </summary>
+    /// <param name="items">选中的项目列表</param>
     private void UpdateSelectedPrimaryWorksheets(IList items)
     {
         if (items == null) return;
 
-        SelectedPrimaryWorksheets.Clear();
-        foreach (var item in items) SelectedPrimaryWorksheets.Add(item.ToString());
+        try
+        {
+            SelectedPrimaryWorksheets.Clear();
+            foreach (var item in items)
+                if (item != null)
+                    SelectedPrimaryWorksheets.Add(item.ToString() ?? string.Empty);
 
-        // 更新主表工作表信息
-        if (SelectedPrimaryWorksheets.Count > 0) LoadPrimaryWorksheetsInfoAsync().ConfigureAwait(false);
+            // 异步更新工作表信息
+            if (SelectedPrimaryWorksheets.Count > 0) _ = LoadPrimaryWorksheetsInfoAsync();
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"更新主表工作表选择时出错: {ex.Message}");
+        }
     }
 
-    // 更新辅助表选中工作表
+    /// <summary>
+    ///     更新辅助表选中工作表
+    /// </summary>
+    /// <param name="items">选中的项目列表</param>
     private void UpdateSelectedSecondaryWorksheets(IList items)
     {
         if (items == null) return;
 
-        SelectedSecondaryWorksheets.Clear();
-        foreach (var item in items) SelectedSecondaryWorksheets.Add(item.ToString());
-
-        // 更新辅助表工作表信息
-        if (SelectedSecondaryWorksheets.Count > 0) LoadSecondaryWorksheetsInfoAsync().ConfigureAwait(false);
-    }
-
-    // 浏览主表文件
-    private async Task BrowsePrimaryFileAsync()
-    {
-        var openFileDialog = new OpenFileDialog
+        try
         {
-            Filter = "Excel文件|*.xlsx;*.xls|所有文件|*.*",
-            Title = "选择主表Excel文件"
-        };
+            SelectedSecondaryWorksheets.Clear();
+            foreach (var item in items)
+                if (item != null)
+                    SelectedSecondaryWorksheets.Add(item.ToString() ?? string.Empty);
 
-        if (openFileDialog.ShowDialog() == true)
+            // 异步更新工作表信息
+            if (SelectedSecondaryWorksheets.Count > 0) _ = LoadSecondaryWorksheetsInfoAsync();
+        }
+        catch (Exception ex)
         {
-            PrimaryFilePath = openFileDialog.FileName;
-            await LoadPrimaryFileAsync();
+            LogDebug($"更新辅助表工作表选择时出错: {ex.Message}");
         }
     }
 
-    // 浏览辅助表文件
-    private async Task BrowseSecondaryFileAsync()
-    {
-        var openFileDialog = new OpenFileDialog
-        {
-            Filter = "Excel文件|*.xlsx;*.xls|所有文件|*.*",
-            Title = "选择辅助表Excel文件"
-        };
+    #endregion
 
-        if (openFileDialog.ShowDialog() == true)
-        {
-            SecondaryFilePath = openFileDialog.FileName;
-            await LoadSecondaryFileAsync();
-        }
-    }
+    #region 工作表信息加载方法
 
     /// <summary>
-    ///     加载主表文件
+    /// 加载主表工作表信息
     /// </summary>
-    private async Task LoadPrimaryFileAsync(bool isRefresh = false)
+    private async Task LoadPrimaryWorksheetInfoAsync()
     {
-        if (string.IsNullOrEmpty(PrimaryFilePath))
+        if (PrimaryFile == null || string.IsNullOrEmpty(SelectedPrimaryWorksheet))
             return;
 
         try
         {
             IsBusy = true;
-            StatusMessage = "正在加载主表文件...";
+            StatusMessage = $"正在加载主表工作表 {SelectedPrimaryWorksheet} 信息...";
 
-            // 如果是刷新操作，先完全关闭之前的文件
-            if (isRefresh && PrimaryFile != null && PrimaryFile.IsLoaded)
-            {
-                await _excelFileManager.CloseFileAsync(PrimaryFile);
-                PrimaryFile = null;
+            PrimaryFile.SelectedWorksheet = SelectedPrimaryWorksheet;
+            PrimaryFile = await _excelFileManager.LoadWorksheetInfoAsync(PrimaryFile);
 
-                // 执行垃圾回收以确保资源释放
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-
-                // 短暂延时以确保文件句柄完全释放
-                await Task.Delay(100);
-            }
-
-            // 重置相关数据
-            PrimaryWorksheets.Clear();
+            // 更新UI列数据
             PrimaryColumns.Clear();
-
-            // 如果是刷新操作，不清除已选工作表和匹配字段
-            if (!isRefresh)
+            foreach (var column in PrimaryFile.Columns)
             {
-                SelectedPrimaryWorksheets.Clear();
-                SelectedPrimaryMatchFields.Clear();
-                PrimaryPreviewData = null;
+                PrimaryColumns.Add(column);
             }
 
-            // 加载文件
-            PrimaryFile = await _excelFileManager.LoadExcelFileAsync(PrimaryFilePath, PrimaryFilePassword);
-
-            // 更新UI
-            foreach (var worksheet in PrimaryFile.Worksheets) PrimaryWorksheets.Add(worksheet);
-
-            if (PrimaryWorksheets.Count > 0 && (!isRefresh || SelectedPrimaryWorksheets.Count == 0))
+            // 加载预览数据
+            if (IsPreviewEnabled)
             {
-                SelectedPrimaryWorksheets.Add(PrimaryWorksheets[0]);
-                SelectedPrimaryWorksheet = PrimaryWorksheets[0];
+                await LoadPreviewDataWithFiltersAsync();
             }
 
-            StatusMessage = $"主表文件已加载，共{PrimaryFile.WorksheetCount}个工作表";
-
-            CheckFileSize();
+            StatusMessage = $"主表工作表已加载，共{PrimaryFile.RowCount}行，{PrimaryFile.ColumnCount}列";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"加载主表文件时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "加载主表文件失败";
-            Debug.WriteLine($"加载主表文件异常: {ex}");
+            await HandleErrorAsync("加载主表工作表信息时出错", ex);
         }
         finally
         {
             IsBusy = false;
+            NotifyCommandsCanExecuteChanged();
         }
     }
 
     /// <summary>
-    ///     加载辅助表文件
+    /// 加载辅助表工作表信息
     /// </summary>
-    private async Task LoadSecondaryFileAsync(bool isRefresh = false)
+    private async Task LoadSecondaryWorksheetInfoAsync()
     {
-        if (string.IsNullOrEmpty(SecondaryFilePath))
+        if (SecondaryFile == null || string.IsNullOrEmpty(SelectedSecondaryWorksheet))
             return;
 
         try
         {
             IsBusy = true;
-            StatusMessage = "正在加载辅助表文件...";
+            StatusMessage = $"正在加载辅助表工作表 {SelectedSecondaryWorksheet} 信息...";
 
-            // 如果是刷新操作，先完全关闭之前的文件
-            if (isRefresh && SecondaryFile != null && SecondaryFile.IsLoaded)
-            {
-                await _excelFileManager.CloseFileAsync(SecondaryFile);
-                SecondaryFile = null;
+            SecondaryFile.SelectedWorksheet = SelectedSecondaryWorksheet;
+            SecondaryFile = await _excelFileManager.LoadWorksheetInfoAsync(SecondaryFile);
 
-                // 执行垃圾回收以确保资源释放
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-
-                // 短暂延时以确保文件句柄完全释放
-                await Task.Delay(100);
-            }
-
-            // 重置相关数据
-            SecondaryWorksheets.Clear();
+            // 更新UI列数据
             SecondaryColumns.Clear();
+            foreach (var column in SecondaryFile.Columns) SecondaryColumns.Add(column);
 
-            // 如果是刷新操作，不清除已选工作表和匹配字段
-            if (!isRefresh)
-            {
-                SelectedSecondaryWorksheets.Clear();
-                SelectedSecondaryMatchFields.Clear();
-                SecondaryPreviewData = null;
-            }
+            // 加载预览数据
+            if (IsPreviewEnabled) await LoadPreviewDataWithFiltersAsync();
 
-            // 加载文件
-            SecondaryFile = await _excelFileManager.LoadExcelFileAsync(SecondaryFilePath, SecondaryFilePassword);
-
-            // 更新UI
-            foreach (var worksheet in SecondaryFile.Worksheets) SecondaryWorksheets.Add(worksheet);
-
-            if (SecondaryWorksheets.Count > 0 && (!isRefresh || SelectedSecondaryWorksheets.Count == 0))
-            {
-                SelectedSecondaryWorksheets.Add(SecondaryWorksheets[0]);
-                SelectedSecondaryWorksheet = SecondaryWorksheets[0];
-            }
-
-            StatusMessage = $"辅助表文件已加载，共{SecondaryFile.WorksheetCount}个工作表";
-
-            CheckFileSize();
+            StatusMessage = $"辅助表工作表已加载，共{SecondaryFile.RowCount}行，{SecondaryFile.ColumnCount}列";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"加载辅助表文件时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "加载辅助表文件失败";
-            Debug.WriteLine($"加载辅助表文件异常: {ex}");
+            await HandleErrorAsync("加载辅助表工作表信息时出错", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            NotifyCommandsCanExecuteChanged();
+        }
+    }
+
+    /// <summary>
+    ///     加载多个主表工作表信息
+    /// </summary>
+    private async Task LoadPrimaryWorksheetsInfoAsync()
+    {
+        if (PrimaryFile == null || SelectedPrimaryWorksheets.Count == 0)
+            return;
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "正在加载主表多工作表信息...";
+
+            // 更新已选工作表
+            PrimaryFile.SelectedWorksheets.Clear();
+            foreach (var worksheet in SelectedPrimaryWorksheets) PrimaryFile.SelectedWorksheets.Add(worksheet);
+
+            // 如果只有一个工作表，保持向后兼容
+            if (SelectedPrimaryWorksheets.Count == 1) PrimaryFile.SelectedWorksheet = SelectedPrimaryWorksheets[0];
+
+            // 加载每个工作表的信息
+            foreach (var worksheetName in SelectedPrimaryWorksheets)
+            {
+                PrimaryFile.SelectedWorksheet = worksheetName;
+                await _excelFileManager.LoadWorksheetInfoAsync(PrimaryFile);
+
+                // 存储工作表列信息
+                if (!PrimaryFile.WorksheetInfo.ContainsKey(worksheetName))
+                    PrimaryFile.WorksheetInfo[worksheetName] = (
+                        PrimaryFile.RowCount,
+                        PrimaryFile.ColumnCount,
+                        new List<string>(PrimaryFile.Columns)
+                    );
+            }
+
+            // 合并所有工作表的列
+            UpdateMergedPrimaryColumns();
+
+            // 更新数据预览
+            if (IsPreviewEnabled)
+            {
+                await LoadPreviewDataWithFiltersAsync();
+            }
+
+            var totalRows = PrimaryFile.WorksheetInfo.Values.Sum(info => info.RowCount);
+            StatusMessage = $"主表工作表已加载，共{totalRows}行，{PrimaryColumns.Count}列";
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync("加载主表多工作表信息时出错", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            NotifyCommandsCanExecuteChanged();
+        }
+    }
+
+    /// <summary>
+    ///     加载多个辅助表工作表信息
+    /// </summary>
+    private async Task LoadSecondaryWorksheetsInfoAsync()
+    {
+        if (SecondaryFile == null || SelectedSecondaryWorksheets.Count == 0)
+            return;
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "正在加载辅助表多工作表信息...";
+
+            // 更新已选工作表
+            SecondaryFile.SelectedWorksheets.Clear();
+            foreach (var worksheet in SelectedSecondaryWorksheets)
+            {
+                SecondaryFile.SelectedWorksheets.Add(worksheet);
+            }
+
+            // 如果只有一个工作表，保持向后兼容
+            if (SelectedSecondaryWorksheets.Count == 1)
+                SecondaryFile.SelectedWorksheet = SelectedSecondaryWorksheets[0];
+
+            // 加载每个工作表的信息
+            foreach (var worksheetName in SelectedSecondaryWorksheets)
+            {
+                SecondaryFile.SelectedWorksheet = worksheetName;
+                await _excelFileManager.LoadWorksheetInfoAsync(SecondaryFile);
+
+                // 存储工作表列信息
+                if (!SecondaryFile.WorksheetInfo.ContainsKey(worksheetName))
+                    SecondaryFile.WorksheetInfo[worksheetName] = (
+                        SecondaryFile.RowCount,
+                        SecondaryFile.ColumnCount,
+                        new List<string>(SecondaryFile.Columns)
+                    );
+            }
+
+            // 合并所有工作表的列
+            UpdateMergedSecondaryColumns();
+
+            // 更新数据预览
+            if (IsPreviewEnabled) await LoadPreviewDataWithFiltersAsync();
+
+            var totalRows = SecondaryFile.WorksheetInfo.Values.Sum(info => info.RowCount);
+            StatusMessage = $"辅助表工作表已加载，共{totalRows}行，{SecondaryColumns.Count}列";
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync("加载辅助表多工作表信息时出错", ex);
+        }
+        finally
+        {
+            IsBusy = false;
+            NotifyCommandsCanExecuteChanged();
+        }
+    }
+
+    /// <summary>
+    ///     更新合并后的主表列信息
+    /// </summary>
+    private void UpdateMergedPrimaryColumns()
+    {
+        PrimaryColumns.Clear();
+        var uniqueColumns = new HashSet<string>();
+
+        foreach (var (_, _, columns) in PrimaryFile.WorksheetInfo.Values)
+        foreach (var column in columns)
+            uniqueColumns.Add(column);
+
+        foreach (var column in uniqueColumns) PrimaryColumns.Add(column);
+    }
+
+    /// <summary>
+    ///     更新合并后的辅助表列信息
+    /// </summary>
+    private void UpdateMergedSecondaryColumns()
+    {
+        SecondaryColumns.Clear();
+        var uniqueColumns = new HashSet<string>();
+
+        foreach (var (_, _, columns) in SecondaryFile.WorksheetInfo.Values)
+        foreach (var column in columns)
+            uniqueColumns.Add(column);
+
+        foreach (var column in uniqueColumns) SecondaryColumns.Add(column);
+    }
+
+    /// <summary>
+    ///     加载预览数据并应用筛选条件
+    /// </summary>
+    private async Task LoadPreviewDataWithFiltersAsync()
+    {
+        // 如果预览被禁用，直接返回
+        if (!IsPreviewEnabled) return;
+
+        try
+        {
+            if (PrimaryFile == null || SecondaryFile == null ||
+                SelectedPrimaryWorksheets.Count == 0 || SelectedSecondaryWorksheets.Count == 0)
+                return;
+
+            IsBusy = true;
+            StatusMessage = "正在加载预览数据...";
+
+            // 获取原始数据
+            var primaryDataRaw = await _excelFileManager.GetWorksheetDataAsync(PrimaryFile);
+            var secondaryDataRaw = await _excelFileManager.GetWorksheetDataAsync(SecondaryFile);
+
+            // 应用筛选条件
+            PrimaryPreviewData = _excelFileManager.ApplyFilters(primaryDataRaw, PrimaryFilters.ToList());
+            SecondaryPreviewData = _excelFileManager.ApplyFilters(secondaryDataRaw, SecondaryFilters.ToList());
+
+            StatusMessage = $"预览数据已加载，主表:{PrimaryPreviewData.Rows.Count}行，辅助表:{SecondaryPreviewData.Rows.Count}行";
+        }
+        catch (Exception ex)
+        {
+            await HandleErrorAsync("加载预览数据时出错", ex);
         }
         finally
         {
@@ -948,8 +2064,122 @@ public class MainViewModel : BaseViewModel
         }
     }
 
+    #endregion
+
+    #region 私有辅助方法
+
     /// <summary>
-    ///     检查文件大小并建议是否关闭预览
+    ///     处理预览模式变更
+    /// </summary>
+    /// <param name="enabled">是否启用预览</param>
+    private async void HandlePreviewModeChanged(bool enabled)
+    {
+        try
+        {
+            if (!enabled)
+            {
+                // 关闭预览时清空预览数据
+                PrimaryPreviewData = null;
+                SecondaryPreviewData = null;
+                StatusMessage = "数据预览已关闭，运行在性能优化模式";
+            }
+            else
+            {
+                // 启用预览时重新加载数据
+                if (PrimaryFile?.IsLoaded == true && SecondaryFile?.IsLoaded == true)
+                {
+                    StatusMessage = "正在启用数据预览...";
+                    await LoadPreviewDataWithFiltersAsync();
+                }
+
+                StatusMessage = "数据预览已启用";
+            }
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"处理预览模式变更时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     通知所有命令重新检查可执行状态
+    /// </summary>
+    private void NotifyCommandsCanExecuteChanged()
+    {
+        try
+        {
+            // 文件操作命令
+            _browsePrimaryFileCommand?.NotifyCanExecuteChanged();
+            _browseSecondaryFileCommand?.NotifyCanExecuteChanged();
+            _loadPrimaryFileCommand?.NotifyCanExecuteChanged();
+            _loadSecondaryFileCommand?.NotifyCanExecuteChanged();
+            _clearPrimaryFileCommand?.NotifyCanExecuteChanged();
+            _clearSecondaryFileCommand?.NotifyCanExecuteChanged();
+
+            // 数据操作命令
+            _refreshDataCommand?.NotifyCanExecuteChanged();
+            _diagnoseMatchingCommand?.NotifyCanExecuteChanged();
+
+            // 字段映射命令
+            _addFieldMappingCommand?.NotifyCanExecuteChanged();
+
+            // 筛选条件命令
+            _addPrimaryFilterCommand?.NotifyCanExecuteChanged();
+            _addSecondaryFilterCommand?.NotifyCanExecuteChanged();
+
+            // 核心业务命令
+            _startMergeCommand?.NotifyCanExecuteChanged();
+
+            // 配置管理命令
+            _saveConfigurationCommand?.NotifyCanExecuteChanged();
+            _loadConfigurationCommand?.NotifyCanExecuteChanged();
+            _resetConfigurationCommand?.NotifyCanExecuteChanged();
+            _openConfigurationDirectoryCommand?.NotifyCanExecuteChanged();
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"通知命令状态变更时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     通知UI相关属性已更改
+    /// </summary>
+    private void NotifyUIPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(HasPrimaryPreviewData));
+        OnPropertyChanged(nameof(HasSecondaryPreviewData));
+        OnPropertyChanged(nameof(IsPrimaryFileInvalid));
+        OnPropertyChanged(nameof(IsSecondaryFileInvalid));
+    }
+
+    /// <summary>
+    ///     记录调试信息
+    /// </summary>
+    /// <param name="message">调试消息</param>
+    private static void LogDebug(string message)
+    {
+        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.fff} - [MainViewModel] {message}");
+    }
+
+    /// <summary>
+    ///     格式化时间段显示
+    /// </summary>
+    /// <param name="duration">时间段</param>
+    /// <returns>格式化的时间字符串</returns>
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalHours >= 1)
+            return $"{duration.Hours}小时{duration.Minutes}分钟{duration.Seconds}秒";
+        if (duration.TotalMinutes >= 1)
+            return $"{duration.Minutes}分钟{duration.Seconds}秒";
+        if (duration.TotalSeconds >= 1)
+            return $"{duration.Seconds}.{duration.Milliseconds:000}秒";
+        return $"{duration.Milliseconds}毫秒";
+    }
+
+    /// <summary>
+    /// 检查文件大小并建议是否关闭预览
     /// </summary>
     private async void CheckFileSize()
     {
@@ -981,18 +2211,17 @@ public class MainViewModel : BaseViewModel
                     IsVeryLarge = maxSize > veryLargeFileThreshold
                 };
 
-                await ShowSuggestDisablePreviewDialog(fileSizeInfo);
+                await ShowSuggestDisablePreviewDialogAsync(fileSizeInfo);
             }
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"检查文件大小时出错: {ex.Message}");
-            // 不影响主流程，仅记录错误
+            LogDebug($"检查文件大小时出错: {ex.Message}");
         }
     }
 
     /// <summary>
-    ///     格式化文件大小显示
+    /// 格式化文件大小显示
     /// </summary>
     private string FormatFileSize(long bytes)
     {
@@ -1006,9 +2235,831 @@ public class MainViewModel : BaseViewModel
     }
 
     /// <summary>
-    ///     显示建议关闭预览的对话框
+    /// 关闭文件并执行垃圾回收
     /// </summary>
-    private async Task ShowSuggestDisablePreviewDialog(dynamic fileSizeInfo)
+    private async Task CloseFileWithGarbageCollection(ExcelFile file)
+    {
+        if (file != null)
+        {
+            await _excelFileManager.CloseFileAsync(file);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            await Task.Delay(100);
+        }
+    }
+
+    /// <summary>
+    ///     重置主表文件数据
+    /// </summary>
+    private void ResetPrimaryFileData(bool isRefresh)
+    {
+        PrimaryWorksheets.Clear();
+        PrimaryColumns.Clear();
+        if (!isRefresh)
+        {
+            SelectedPrimaryWorksheets.Clear();
+            SelectedPrimaryMatchFields.Clear();
+            PrimaryPreviewData = null;
+        }
+    }
+
+    /// <summary>
+    ///     重置辅助表文件数据
+    /// </summary>
+    private void ResetSecondaryFileData(bool isRefresh)
+    {
+        SecondaryWorksheets.Clear();
+        SecondaryColumns.Clear();
+        if (!isRefresh)
+        {
+            SelectedSecondaryWorksheets.Clear();
+            SelectedSecondaryMatchFields.Clear();
+            SecondaryPreviewData = null;
+        }
+    }
+
+    /// <summary>
+    ///     更新主表文件UI
+    /// </summary>
+    private void UpdatePrimaryFileUI()
+    {
+        foreach (var worksheet in PrimaryFile.Worksheets) PrimaryWorksheets.Add(worksheet);
+
+        if (PrimaryWorksheets.Count > 0 && SelectedPrimaryWorksheets.Count == 0)
+        {
+            SelectedPrimaryWorksheets.Add(PrimaryWorksheets[0]);
+            SelectedPrimaryWorksheet = PrimaryWorksheets[0];
+        }
+    }
+
+    /// <summary>
+    ///     更新辅助表文件UI
+    /// </summary>
+    private void UpdateSecondaryFileUI()
+    {
+        foreach (var worksheet in SecondaryFile.Worksheets) SecondaryWorksheets.Add(worksheet);
+
+        if (SecondaryWorksheets.Count > 0 && SelectedSecondaryWorksheets.Count == 0)
+        {
+            SelectedSecondaryWorksheets.Add(SecondaryWorksheets[0]);
+            SelectedSecondaryWorksheet = SecondaryWorksheets[0];
+        }
+    }
+
+    /// <summary>
+    ///     验证匹配参数
+    /// </summary>
+    private bool ValidateMatchingParameters()
+    {
+        if (PrimaryFile == null || !PrimaryFile.IsLoaded)
+        {
+            MessageBox.Show("请先加载主表文件", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+
+        if (SecondaryFile == null || !SecondaryFile.IsLoaded)
+        {
+            MessageBox.Show("请先加载辅助表文件", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+
+        if (SelectedPrimaryWorksheets.Count == 0)
+        {
+            MessageBox.Show("请选择至少一个主表工作表", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+
+        if (SelectedSecondaryWorksheets.Count == 0)
+        {
+            MessageBox.Show("请选择至少一个辅助表工作表", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+
+        if (SelectedPrimaryMatchFields.Count == 0 || SelectedSecondaryMatchFields.Count == 0)
+        {
+            MessageBox.Show("请选择匹配字段", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+
+        if (SelectedPrimaryMatchFields.Count != SelectedSecondaryMatchFields.Count)
+        {
+            MessageBox.Show("主表和辅助表的匹配字段数量必须相等", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     验证合并参数
+    /// </summary>
+    private bool ValidateMergeParameters()
+    {
+        if (!ValidateMatchingParameters())
+            return false;
+
+        if (FieldMappings.Count == 0)
+        {
+            MessageBox.Show("请至少添加一个字段映射", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+
+        foreach (var mapping in FieldMappings)
+        {
+            if (string.IsNullOrEmpty(mapping.SourceField))
+            {
+                MessageBox.Show("字段映射中的源字段不能为空", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(mapping.TargetField))
+            {
+                MessageBox.Show("字段映射中的目标字段不能为空", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     验证和更新字段映射
+    /// </summary>
+    private void ValidateAndUpdateFieldMappings()
+    {
+        try
+        {
+            // 处理主表匹配字段
+            var validPrimaryMatchFields = new List<string>();
+            foreach (var field in SelectedPrimaryMatchFields)
+                if (PrimaryColumns.Contains(field))
+                    validPrimaryMatchFields.Add(field);
+
+            SelectedPrimaryMatchFields.Clear();
+            foreach (var field in validPrimaryMatchFields) SelectedPrimaryMatchFields.Add(field);
+
+            // 处理辅助表匹配字段
+            var validSecondaryMatchFields = new List<string>();
+            foreach (var field in SelectedSecondaryMatchFields)
+                if (SecondaryColumns.Contains(field))
+                    validSecondaryMatchFields.Add(field);
+
+            SelectedSecondaryMatchFields.Clear();
+            foreach (var field in validSecondaryMatchFields) SelectedSecondaryMatchFields.Add(field);
+
+            // 处理字段映射
+            var validMappings = new List<FieldMapping>();
+            foreach (var mapping in FieldMappings)
+                // 检查源字段是否仍然存在
+                if (!string.IsNullOrEmpty(mapping.SourceField) && SecondaryColumns.Contains(mapping.SourceField))
+                    validMappings.Add(mapping);
+
+            FieldMappings.Clear();
+            foreach (var mapping in validMappings)
+            {
+                // 重新添加PropertyChanged事件处理程序
+                if (mapping is INotifyPropertyChanged notifyMapping)
+                    notifyMapping.PropertyChanged += OnFieldMappingPropertyChanged;
+                FieldMappings.Add(mapping);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"验证和更新字段映射时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     保存当前选择状态
+    /// </summary>
+    private dynamic SaveCurrentSelections()
+    {
+        return new
+        {
+            PrimaryWorksheets = new List<string>(SelectedPrimaryWorksheets),
+            SecondaryWorksheets = new List<string>(SelectedSecondaryWorksheets),
+            PrimaryMatchFields = new List<string>(SelectedPrimaryMatchFields),
+            SecondaryMatchFields = new List<string>(SelectedSecondaryMatchFields)
+        };
+    }
+
+    /// <summary>
+    ///     强制关闭所有文件
+    /// </summary>
+    private async Task ForceCloseAllFiles()
+    {
+        try
+        {
+            // 清除现有数据
+            PrimaryWorksheets.Clear();
+            SecondaryWorksheets.Clear();
+            PrimaryColumns.Clear();
+            SecondaryColumns.Clear();
+            PrimaryPreviewData = null;
+            SecondaryPreviewData = null;
+
+            // 强制关闭文件并释放资源
+            if (PrimaryFile != null)
+            {
+                await _excelFileManager.CloseFileAsync(PrimaryFile);
+                PrimaryFile = new ExcelFile();
+            }
+
+            if (SecondaryFile != null)
+            {
+                await _excelFileManager.CloseFileAsync(SecondaryFile);
+                SecondaryFile = new ExcelFile();
+            }
+
+            // 执行垃圾回收
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"强制关闭文件时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     重新加载文件
+    /// </summary>
+    private async Task ReloadFilesAsync()
+    {
+        try
+        {
+            // 重新加载文件
+            if (!string.IsNullOrEmpty(PrimaryFilePath) && File.Exists(PrimaryFilePath))
+            {
+                StatusMessage = "正在重新加载主表文件...";
+                await LoadPrimaryFileAsync(true);
+            }
+
+            if (!string.IsNullOrEmpty(SecondaryFilePath) && File.Exists(SecondaryFilePath))
+            {
+                StatusMessage = "正在重新加载辅助表文件...";
+                await LoadSecondaryFileAsync(true);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"重新加载文件时出错: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    ///     恢复选择状态
+    /// </summary>
+    private async Task RestoreSelections(dynamic selections)
+    {
+        try
+        {
+            // 恢复主表工作表选择
+            if (PrimaryWorksheets.Count > 0)
+            {
+                foreach (var sheet in selections.PrimaryWorksheets)
+                    if (PrimaryWorksheets.Contains(sheet))
+                        SelectedPrimaryWorksheets.Add(sheet);
+
+                if (SelectedPrimaryWorksheets.Count == 0 && PrimaryWorksheets.Count > 0)
+                    SelectedPrimaryWorksheets.Add(PrimaryWorksheets[0]);
+
+                await LoadPrimaryWorksheetsInfoAsync();
+            }
+
+            // 恢复辅助表工作表选择
+            if (SecondaryWorksheets.Count > 0)
+            {
+                foreach (var sheet in selections.SecondaryWorksheets)
+                    if (SecondaryWorksheets.Contains(sheet))
+                        SelectedSecondaryWorksheets.Add(sheet);
+
+                if (SelectedSecondaryWorksheets.Count == 0 && SecondaryWorksheets.Count > 0)
+                    SelectedSecondaryWorksheets.Add(SecondaryWorksheets[0]);
+
+                await LoadSecondaryWorksheetsInfoAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"恢复选择状态时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     检查文件变更
+    /// </summary>
+    private async Task<bool> CheckForFileChangesAsync()
+    {
+        try
+        {
+            var hasChanges = false;
+
+            // 检查主表文件
+            if (!string.IsNullOrEmpty(PrimaryFilePath) && File.Exists(PrimaryFilePath))
+            {
+                var lastWriteTime = File.GetLastWriteTime(PrimaryFilePath);
+                if (PrimaryFile != null && PrimaryFile.LastChecked < lastWriteTime) hasChanges = true;
+            }
+
+            // 检查辅助表文件
+            if (!string.IsNullOrEmpty(SecondaryFilePath) && File.Exists(SecondaryFilePath))
+            {
+                var lastWriteTime = File.GetLastWriteTime(SecondaryFilePath);
+                if (SecondaryFile != null && SecondaryFile.LastChecked < lastWriteTime) hasChanges = true;
+            }
+
+            return hasChanges;
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"检查文件变更时出错: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    ///     创建进度报告器
+    /// </summary>
+    private IProgress<(int Current, int Total, string Message)> CreateProgressReporter()
+    {
+        return new Progress<(int Current, int Total, string Message)>(report =>
+        {
+            ProgressValue = report.Current;
+            ProgressMaximum = report.Total;
+            StatusMessage = report.Message;
+        });
+    }
+
+    /// <summary>
+    ///     执行合并操作
+    /// </summary>
+    private async Task<(int ProcessedRows, int MatchedRows, int NewColumnsAdded, string OutputPath)> ExecuteMergeAsync(
+        IProgress<(int Current, int Total, string Message)> progress)
+    {
+        return PrimaryFile.SelectedWorksheets.Count > 1 || SecondaryFile.SelectedWorksheets.Count > 1
+            ? await _excelFileManager.MergeMultipleWorksheetsAsync(
+                PrimaryFile,
+                SecondaryFile,
+                SelectedPrimaryMatchFields.ToList(),
+                SelectedSecondaryMatchFields.ToList(),
+                FieldMappings.ToList(),
+                PrimaryFilters.ToList(),
+                SecondaryFilters.ToList(),
+                progress)
+            : await _excelFileManager.MergeExcelFilesAsync(
+                PrimaryFile,
+                SecondaryFile,
+                SelectedPrimaryMatchFields.ToList(),
+                SelectedSecondaryMatchFields.ToList(),
+                FieldMappings.ToList(),
+                PrimaryFilters.ToList(),
+                SecondaryFilters.ToList(),
+                progress);
+    }
+
+    /// <summary>
+    ///     更新文件检查时间
+    /// </summary>
+    private void UpdateFileCheckTimes()
+    {
+        try
+        {
+            // 更新文件的LastChecked属性以记录最新检查时间
+            if (PrimaryFile != null && File.Exists(PrimaryFilePath))
+                PrimaryFile.LastChecked = File.GetLastWriteTime(PrimaryFilePath);
+
+            if (SecondaryFile != null && File.Exists(SecondaryFilePath))
+                SecondaryFile.LastChecked = File.GetLastWriteTime(SecondaryFilePath);
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"更新文件检查时间时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    ///     从当前状态创建配置对象
+    /// </summary>
+    private Configuration CreateConfigurationFromCurrentState()
+    {
+        try
+        {
+            var config = new Configuration
+            {
+                Name = $"配置_{DateTime.Now:yyyyMMddHHmmss}",
+                PrimaryFilePath = PrimaryFilePath,
+                PrimaryFilePassword = PrimaryFilePassword,
+                SecondaryFilePath = SecondaryFilePath,
+                SecondaryFilePassword = SecondaryFilePassword
+            };
+
+            // 处理工作表信息
+            if (PrimaryFile != null)
+            {
+                config.PrimaryWorksheet = PrimaryFile.SelectedWorksheet;
+                config.PrimaryWorksheets = new List<string>(SelectedPrimaryWorksheets);
+            }
+
+            if (SecondaryFile != null)
+            {
+                config.SecondaryWorksheet = SecondaryFile.SelectedWorksheet;
+                config.SecondaryWorksheets = new List<string>(SelectedSecondaryWorksheets);
+            }
+
+            // 处理字段匹配和映射
+            config.PrimaryMatchFields = new List<string>(SelectedPrimaryMatchFields);
+            config.SecondaryMatchFields = new List<string>(SelectedSecondaryMatchFields);
+
+            // 深度复制字段映射
+            config.FieldMappings = FieldMappings.Select(m => new FieldMapping
+            {
+                SourceField = m.SourceField,
+                TargetField = m.TargetField
+            }).ToList();
+
+            // 深度复制筛选条件
+            config.PrimaryFilters = PrimaryFilters.Select(f => new FilterCondition
+            {
+                Field = f.Field,
+                Operator = f.Operator,
+                Value = f.Value,
+                LogicalOperator = f.LogicalOperator
+            }).ToList();
+
+            config.SecondaryFilters = SecondaryFilters.Select(f => new FilterCondition
+            {
+                Field = f.Field,
+                Operator = f.Operator,
+                Value = f.Value,
+                LogicalOperator = f.LogicalOperator
+            }).ToList();
+
+            return config;
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"创建配置时出错: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    ///     应用配置
+    /// </summary>
+    private async Task ApplyConfigurationAsync(Configuration config)
+    {
+        if (config == null) return;
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = $"正在应用配置: {config.Name}";
+
+            // 设置文件路径和密码
+            PrimaryFilePath = config.PrimaryFilePath;
+            PrimaryFilePassword = config.PrimaryFilePassword;
+            SecondaryFilePath = config.SecondaryFilePath;
+            SecondaryFilePassword = config.SecondaryFilePassword;
+
+            // 加载文件
+            if (!string.IsNullOrEmpty(PrimaryFilePath) && File.Exists(PrimaryFilePath)) await LoadPrimaryFileAsync();
+
+            if (!string.IsNullOrEmpty(SecondaryFilePath) && File.Exists(SecondaryFilePath))
+                await LoadSecondaryFileAsync();
+
+            // 应用工作表选择
+            await ApplyWorksheetSelections(config);
+
+            // 应用字段选择和映射
+            ApplyFieldSelections(config);
+
+            // 应用筛选条件
+            ApplyFilterConditions(config);
+
+            // 加载预览数据
+            if (IsPreviewEnabled) await LoadPreviewDataWithFiltersAsync();
+
+            NotifyCommandsCanExecuteChanged();
+            StatusMessage = $"配置 '{config.Name}' 已应用";
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"应用配置时出错: {ex.Message}");
+            StatusMessage = "应用配置失败";
+            throw;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    ///     应用工作表选择
+    /// </summary>
+    private async Task ApplyWorksheetSelections(Configuration config)
+    {
+        // 设置主表工作表
+        if (PrimaryFile != null && PrimaryFile.IsLoaded)
+        {
+            SelectedPrimaryWorksheets.Clear();
+
+            // 先检查多表配置
+            if (config.PrimaryWorksheets != null && config.PrimaryWorksheets.Count > 0)
+            {
+                foreach (var worksheet in config.PrimaryWorksheets)
+                    if (PrimaryWorksheets.Contains(worksheet))
+                        SelectedPrimaryWorksheets.Add(worksheet);
+            }
+            // 再检查单表配置(向后兼容)
+            else if (!string.IsNullOrEmpty(config.PrimaryWorksheet) &&
+                     PrimaryWorksheets.Contains(config.PrimaryWorksheet))
+            {
+                SelectedPrimaryWorksheets.Add(config.PrimaryWorksheet);
+            }
+
+            if (SelectedPrimaryWorksheets.Count > 0) await LoadPrimaryWorksheetsInfoAsync();
+        }
+
+        // 设置辅助表工作表
+        if (SecondaryFile != null && SecondaryFile.IsLoaded)
+        {
+            SelectedSecondaryWorksheets.Clear();
+
+            // 先检查多表配置
+            if (config.SecondaryWorksheets != null && config.SecondaryWorksheets.Count > 0)
+            {
+                foreach (var worksheet in config.SecondaryWorksheets)
+                    if (SecondaryWorksheets.Contains(worksheet))
+                        SelectedSecondaryWorksheets.Add(worksheet);
+            }
+            // 再检查单表配置(向后兼容)
+            else if (!string.IsNullOrEmpty(config.SecondaryWorksheet) &&
+                     SecondaryWorksheets.Contains(config.SecondaryWorksheet))
+            {
+                SelectedSecondaryWorksheets.Add(config.SecondaryWorksheet);
+            }
+
+            if (SelectedSecondaryWorksheets.Count > 0) await LoadSecondaryWorksheetsInfoAsync();
+        }
+    }
+
+    /// <summary>
+    /// 应用字段选择
+    /// </summary>
+    private void ApplyFieldSelections(Configuration config)
+    {
+        // 设置匹配字段
+        if (config.PrimaryMatchFields != null && PrimaryColumns.Count > 0)
+        {
+            SelectedPrimaryMatchFields.Clear();
+            foreach (var field in config.PrimaryMatchFields)
+                if (PrimaryColumns.Contains(field))
+                    SelectedPrimaryMatchFields.Add(field);
+        }
+
+        if (config.SecondaryMatchFields != null && SecondaryColumns.Count > 0)
+        {
+            SelectedSecondaryMatchFields.Clear();
+            foreach (var field in config.SecondaryMatchFields)
+                if (SecondaryColumns.Contains(field))
+                    SelectedSecondaryMatchFields.Add(field);
+        }
+
+        // 设置字段映射
+        if (config.FieldMappings != null)
+        {
+            FieldMappings.Clear();
+            foreach (var mapping in config.FieldMappings)
+                if (!string.IsNullOrEmpty(mapping.SourceField) && SecondaryColumns.Contains(mapping.SourceField))
+                {
+                    var newMapping = new FieldMapping
+                    {
+                        SourceField = mapping.SourceField,
+                        TargetField = mapping.TargetField
+                    };
+
+                    // 监听属性变更
+                    if (newMapping is INotifyPropertyChanged notifyMapping)
+                        notifyMapping.PropertyChanged += OnFieldMappingPropertyChanged;
+
+                    FieldMappings.Add(newMapping);
+                }
+        }
+    }
+
+    /// <summary>
+    ///     应用筛选条件
+    /// </summary>
+    private void ApplyFilterConditions(Configuration config)
+    {
+        // 设置主表筛选条件
+        if (config.PrimaryFilters != null)
+        {
+            PrimaryFilters.Clear();
+            foreach (var filter in config.PrimaryFilters)
+                if (!string.IsNullOrEmpty(filter.Field) && PrimaryColumns.Contains(filter.Field))
+                {
+                    var newFilter = new FilterCondition
+                    {
+                        Field = filter.Field,
+                        Operator = filter.Operator,
+                        Value = filter.Value,
+                        LogicalOperator = filter.LogicalOperator
+                    };
+
+                    // 监听属性变更
+                    if (newFilter is INotifyPropertyChanged notifyFilter)
+                        notifyFilter.PropertyChanged += OnFilterConditionPropertyChanged;
+
+                    PrimaryFilters.Add(newFilter);
+                }
+        }
+
+        // 设置辅助表筛选条件
+        if (config.SecondaryFilters != null)
+        {
+            SecondaryFilters.Clear();
+            foreach (var filter in config.SecondaryFilters)
+                if (!string.IsNullOrEmpty(filter.Field) && SecondaryColumns.Contains(filter.Field))
+                {
+                    var newFilter = new FilterCondition
+                    {
+                        Field = filter.Field,
+                        Operator = filter.Operator,
+                        Value = filter.Value,
+                        LogicalOperator = filter.LogicalOperator
+                    };
+
+                    // 监听属性变更
+                    if (newFilter is INotifyPropertyChanged notifyFilter)
+                        notifyFilter.PropertyChanged += OnFilterConditionPropertyChanged;
+
+                    SecondaryFilters.Add(newFilter);
+                }
+        }
+    }
+
+    /// <summary>
+    ///     执行重置操作
+    /// </summary>
+    private void PerformReset()
+    {
+        try
+        {
+            // 清空文件路径和密码
+            PrimaryFilePath = string.Empty;
+            PrimaryFilePassword = string.Empty;
+            SecondaryFilePath = string.Empty;
+            SecondaryFilePassword = string.Empty;
+
+            // 重置文件对象
+            PrimaryFile = new ExcelFile();
+            SecondaryFile = new ExcelFile();
+
+            // 清空所有集合
+            PrimaryWorksheets.Clear();
+            SecondaryWorksheets.Clear();
+            PrimaryColumns.Clear();
+            SecondaryColumns.Clear();
+            SelectedPrimaryMatchFields.Clear();
+            SelectedSecondaryMatchFields.Clear();
+            SelectedPrimaryWorksheets.Clear();
+            SelectedSecondaryWorksheets.Clear();
+            FieldMappings.Clear();
+            PrimaryFilters.Clear();
+            SecondaryFilters.Clear();
+
+            // 清空预览数据
+            PrimaryPreviewData = null;
+            SecondaryPreviewData = null;
+
+            // 重置状态
+            ProgressValue = 0;
+            IsPreviewEnabled = true;
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"执行重置时出错: {ex.Message}");
+            throw;
+        }
+    }
+
+    #endregion
+
+    #region 事件处理方法
+
+    /// <summary>
+    ///     处理筛选条件集合变更事件
+    /// </summary>
+    private void OnFilterConditionsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        // 当筛选条件集合发生变化时，刷新预览数据
+        if (e.Action != NotifyCollectionChangedAction.Move) _ = LoadPreviewDataWithFiltersAsync();
+    }
+
+    /// <summary>
+    ///     处理字段映射属性变更事件
+    /// </summary>
+    private void OnFieldMappingPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        NotifyCommandsCanExecuteChanged();
+    }
+
+    /// <summary>
+    ///     处理筛选条件属性变更事件
+    /// </summary>
+    private void OnFilterConditionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        _ = LoadPreviewDataWithFiltersAsync();
+    }
+
+    /// <summary>
+    ///     重写属性更改通知以包含UI属性
+    /// </summary>
+    protected override void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        base.OnPropertyChanged(propertyName);
+
+        // 当相关属性变更时，通知UI属性也已变更
+        if (propertyName == nameof(PrimaryPreviewData) ||
+            propertyName == nameof(SecondaryPreviewData) ||
+            propertyName == nameof(PrimaryFile) ||
+            propertyName == nameof(SecondaryFile) ||
+            propertyName == nameof(PrimaryFilePath) ||
+            propertyName == nameof(SecondaryFilePath))
+            NotifyUIPropertiesChanged();
+    }
+
+    #endregion
+
+    #region 错误处理方法
+
+    /// <summary>
+    ///     统一错误处理方法
+    /// </summary>
+    private async Task HandleErrorAsync(string message, Exception ex)
+    {
+        var errorMessage = $"{message}: {ex.Message}";
+        MessageBox.Show(errorMessage, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        StatusMessage = message.Replace("时出错", "失败");
+        LogDebug($"{message}: {ex}");
+    }
+
+    /// <summary>
+    ///     处理合并操作错误
+    /// </summary>
+    private async Task HandleMergeErrorAsync(Exception ex)
+    {
+        var errorMessage = ex.Message;
+        var innerEx = ex.InnerException;
+
+        while (innerEx != null)
+        {
+            errorMessage += $"\n详细信息: {innerEx.Message}";
+            innerEx = innerEx.InnerException;
+        }
+
+        // 解析常见错误并提供更友好的提示
+        if (errorMessage.Contains("does not belong to table"))
+        {
+            var columnName = string.Empty;
+            var startIndex = errorMessage.IndexOf("Column '") + 8;
+            if (startIndex > 8)
+            {
+                var endIndex = errorMessage.IndexOf("'", startIndex);
+                if (endIndex > startIndex)
+                    columnName = errorMessage.Substring(startIndex, endIndex - startIndex);
+            }
+
+            if (!string.IsNullOrEmpty(columnName))
+                errorMessage = $"合并失败: 在处理字段 '{columnName}' 时出错，此字段在某些工作表中不存在。\n\n" +
+                               "请检查您的字段映射，确保所有映射的源字段都存在于选定的辅助表工作表中。";
+            else
+                errorMessage = "合并失败: 尝试访问不存在的列。请检查您的字段映射，确保所有映射的源字段都存在于选定的辅助表工作表中。";
+        }
+        else if (errorMessage.Contains("being used by another process"))
+        {
+            errorMessage = "合并失败: 文件被其他程序占用。请关闭可能打开了这些Excel文件的程序后再试。";
+        }
+
+        // 显示错误对话框 - 使用MD3风格
+        await ShowMergeErrorDialogAsync(errorMessage);
+
+        StatusMessage = "合并数据失败";
+        LogDebug($"合并数据异常: {ex}");
+    }
+
+    #endregion
+
+    #region MD3风格对话框方法 - 保持原始实现
+
+    /// <summary>
+    ///     显示建议关闭预览的MD3风格对话框
+    /// </summary>
+    private async Task ShowSuggestDisablePreviewDialogAsync(dynamic fileSizeInfo)
     {
         try
         {
@@ -1186,8 +3237,10 @@ public class MainViewModel : BaseViewModel
 
                 // 如果用户选择记住选择，可以保存到配置中
                 if (rememberCheckBox.IsChecked == true)
+                {
                     // TODO: 可以添加到用户配置中，下次自动应用
-                    Debug.WriteLine("用户选择记住关闭预览的选择");
+                    LogDebug("用户选择记住关闭预览的选择");
+                }
             }
             else
             {
@@ -1197,445 +3250,20 @@ public class MainViewModel : BaseViewModel
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"显示文件大小建议对话框时出错: {ex.Message}");
+            LogDebug($"显示文件大小建议对话框时出错: {ex.Message}");
             // 如果对话框显示失败，静默处理，不影响主流程
         }
     }
 
-    // 加载主表工作表信息
-    private async Task LoadPrimaryWorksheetInfoAsync()
-    {
-        if (PrimaryFile == null || string.IsNullOrEmpty(SelectedPrimaryWorksheet))
-            return;
-
-        try
-        {
-            IsBusy = true;
-            StatusMessage = $"正在加载主表工作表 {SelectedPrimaryWorksheet} 信息...";
-
-            // 更新已选工作表
-            PrimaryFile.SelectedWorksheet = SelectedPrimaryWorksheet;
-
-            // 加载工作表信息
-            PrimaryFile = await _excelFileManager.LoadWorksheetInfoAsync(PrimaryFile);
-
-            // 更新UI
-            PrimaryColumns.Clear();
-            foreach (var column in PrimaryFile.Columns) PrimaryColumns.Add(column);
-
-            // 只有在预览启用时才加载预览数据
-            if (IsPreviewEnabled) await LoadPreviewDataWithFiltersAsync();
-
-            StatusMessage = $"主表工作表已加载，共{PrimaryFile.RowCount}行，{PrimaryFile.ColumnCount}列";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"加载主表工作表信息时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "加载主表工作表信息失败";
-            Debug.WriteLine($"加载主表工作表信息异常: {ex}");
-        }
-        finally
-        {
-            IsBusy = false;
-            NotifyCommandsCanExecuteChanged(); // 确保在完成后更新命令状态
-        }
-    }
-
-    // 加载多个主表工作表信息
-    private async Task LoadPrimaryWorksheetsInfoAsync()
-    {
-        if (PrimaryFile == null || SelectedPrimaryWorksheets.Count == 0)
-            return;
-
-        try
-        {
-            IsBusy = true;
-            StatusMessage = "正在加载主表工作表信息...";
-
-            // 更新已选工作表
-            PrimaryFile.SelectedWorksheets.Clear();
-            foreach (var worksheet in SelectedPrimaryWorksheets) PrimaryFile.SelectedWorksheets.Add(worksheet);
-
-            // 如果只有一个工作表，保持向后兼容
-            if (SelectedPrimaryWorksheets.Count == 1) PrimaryFile.SelectedWorksheet = SelectedPrimaryWorksheets[0];
-
-            // 加载每个工作表的信息
-            foreach (var worksheetName in SelectedPrimaryWorksheets)
-            {
-                // 临时设置当前工作表
-                PrimaryFile.SelectedWorksheet = worksheetName;
-
-                // 加载工作表信息
-                await _excelFileManager.LoadWorksheetInfoAsync(PrimaryFile);
-
-                // 存储工作表列信息
-                if (!PrimaryFile.WorksheetInfo.ContainsKey(worksheetName))
-                    PrimaryFile.WorksheetInfo[worksheetName] = (
-                        PrimaryFile.RowCount,
-                        PrimaryFile.ColumnCount,
-                        new List<string>(PrimaryFile.Columns)
-                    );
-            }
-
-            // 合并所有工作表的列
-            PrimaryColumns.Clear();
-            var uniqueColumns = new HashSet<string>();
-            foreach (var (_, _, columns) in PrimaryFile.WorksheetInfo.Values)
-            foreach (var column in columns)
-                uniqueColumns.Add(column);
-
-            foreach (var column in uniqueColumns) PrimaryColumns.Add(column);
-
-            // 更新数据预览
-            await LoadPreviewDataWithFiltersAsync();
-
-            var totalRows = PrimaryFile.WorksheetInfo.Values.Sum(info => info.RowCount);
-            StatusMessage = $"主表工作表已加载，共{totalRows}行，{PrimaryColumns.Count}列";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"加载主表工作表信息时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "加载主表工作表信息失败";
-        }
-        finally
-        {
-            IsBusy = false;
-            NotifyCommandsCanExecuteChanged();
-        }
-    }
-
-    // 加载辅助表工作表信息
-    private async Task LoadSecondaryWorksheetInfoAsync()
-    {
-        if (SecondaryFile == null || string.IsNullOrEmpty(SelectedSecondaryWorksheet))
-            return;
-
-        try
-        {
-            IsBusy = true;
-            StatusMessage = $"正在加载辅助表工作表 {SelectedSecondaryWorksheet} 信息...";
-
-            // 更新已选工作表
-            SecondaryFile.SelectedWorksheet = SelectedSecondaryWorksheet;
-
-            // 加载工作表信息
-            SecondaryFile = await _excelFileManager.LoadWorksheetInfoAsync(SecondaryFile);
-
-            // 更新UI
-            SecondaryColumns.Clear();
-            foreach (var column in SecondaryFile.Columns) SecondaryColumns.Add(column);
-
-            // 加载预览数据
-            await LoadPreviewDataWithFiltersAsync();
-
-            StatusMessage = $"辅助表工作表已加载，共{SecondaryFile.RowCount}行，{SecondaryFile.ColumnCount}列";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"加载辅助表工作表信息时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "加载辅助表工作表信息失败";
-            Debug.WriteLine($"加载辅助表工作表信息异常: {ex}");
-        }
-        finally
-        {
-            IsBusy = false;
-            NotifyCommandsCanExecuteChanged(); // 确保在完成后更新命令状态
-        }
-    }
-
-    // 加载多个辅助表工作表信息
-    private async Task LoadSecondaryWorksheetsInfoAsync()
-    {
-        if (SecondaryFile == null || SelectedSecondaryWorksheets.Count == 0)
-            return;
-
-        try
-        {
-            IsBusy = true;
-            StatusMessage = "正在加载辅助表工作表信息...";
-
-            // 更新已选工作表
-            SecondaryFile.SelectedWorksheets.Clear();
-            foreach (var worksheet in SelectedSecondaryWorksheets) SecondaryFile.SelectedWorksheets.Add(worksheet);
-
-            // 如果只有一个工作表，保持向后兼容
-            if (SelectedSecondaryWorksheets.Count == 1)
-                SecondaryFile.SelectedWorksheet = SelectedSecondaryWorksheets[0];
-
-            // 加载每个工作表的信息
-            foreach (var worksheetName in SelectedSecondaryWorksheets)
-            {
-                // 临时设置当前工作表
-                SecondaryFile.SelectedWorksheet = worksheetName;
-
-                // 加载工作表信息
-                await _excelFileManager.LoadWorksheetInfoAsync(SecondaryFile);
-
-                // 存储工作表列信息
-                if (!SecondaryFile.WorksheetInfo.ContainsKey(worksheetName))
-                    SecondaryFile.WorksheetInfo[worksheetName] = (
-                        SecondaryFile.RowCount,
-                        SecondaryFile.ColumnCount,
-                        new List<string>(SecondaryFile.Columns)
-                    );
-            }
-
-            // 合并所有工作表的列
-            SecondaryColumns.Clear();
-            var uniqueColumns = new HashSet<string>();
-            foreach (var (_, _, columns) in SecondaryFile.WorksheetInfo.Values)
-            foreach (var column in columns)
-                uniqueColumns.Add(column);
-
-            foreach (var column in uniqueColumns) SecondaryColumns.Add(column);
-
-            // 更新数据预览
-            await LoadPreviewDataWithFiltersAsync();
-
-            var totalRows = SecondaryFile.WorksheetInfo.Values.Sum(info => info.RowCount);
-            StatusMessage = $"辅助表工作表已加载，共{totalRows}行，{SecondaryColumns.Count}列";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"加载辅助表工作表信息时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "加载辅助表工作表信息失败";
-        }
-        finally
-        {
-            IsBusy = false;
-            NotifyCommandsCanExecuteChanged();
-        }
-    }
-
-    // 加载预览数据并应用筛选条件
-    private async Task LoadPreviewDataWithFiltersAsync()
-    {
-        // 如果预览被禁用，直接返回
-        if (!IsPreviewEnabled) return;
-        try
-        {
-            if (PrimaryFile == null || SecondaryFile == null ||
-                string.IsNullOrEmpty(PrimaryFile.SelectedWorksheet) ||
-                string.IsNullOrEmpty(SecondaryFile.SelectedWorksheet))
-                return;
-
-            IsBusy = true;
-            StatusMessage = "正在加载预览数据...";
-
-            // 获取原始数据
-            var primaryDataRaw = await _excelFileManager.GetWorksheetDataAsync(PrimaryFile);
-            var secondaryDataRaw = await _excelFileManager.GetWorksheetDataAsync(SecondaryFile);
-
-            // 应用筛选条件
-            PrimaryPreviewData = _excelFileManager.ApplyFilters(primaryDataRaw, PrimaryFilters.ToList());
-            SecondaryPreviewData = _excelFileManager.ApplyFilters(secondaryDataRaw, SecondaryFilters.ToList());
-
-            // 显示结果
-            StatusMessage = $"预览数据已加载，主表:{PrimaryPreviewData.Rows.Count}行，辅助表:{SecondaryPreviewData.Rows.Count}行";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"加载预览数据时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "加载预览数据失败";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    // 添加字段映射
-    private void AddFieldMapping()
-    {
-        try
-        {
-            // 创建新的字段映射
-            var mapping = new FieldMapping
-            {
-                SourceField = SecondaryColumns.FirstOrDefault() ?? string.Empty,
-                TargetField = string.Empty // 可以为空，表示新增字段
-            };
-
-            // 监听属性变更以自动更新UI
-            ((INotifyPropertyChanged)mapping).PropertyChanged += FieldMapping_PropertyChanged;
-
-            // 添加到映射列表
-            FieldMappings.Add(mapping);
-            Debug.WriteLine($"添加字段映射: {mapping.SourceField} -> {mapping.TargetField}");
-
-            // 确保更新命令状态
-            NotifyCommandsCanExecuteChanged();
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"添加字段映射时出错: {ex.Message}");
-            MessageBox.Show($"添加字段映射时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    // 处理字段映射属性变更
-    private void FieldMapping_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        // 通知命令可能需要更新
-        NotifyCommandsCanExecuteChanged();
-    }
-
-    // 判断是否可以添加字段映射
-    private bool CanAddFieldMapping()
-    {
-        var canAdd = SecondaryColumns != null && SecondaryColumns.Count > 0 && !IsBusy;
-        Debug.WriteLine($"CanAddFieldMapping: {canAdd}, SecondaryColumns数量: {SecondaryColumns?.Count ?? 0}");
-        return canAdd;
-    }
-
     /// <summary>
-    ///     刷新数据
+    /// 显示诊断结果的MD3风格对话框
     /// </summary>
-    private async Task RefreshDataAsync()
+    private async Task ShowDiagnosisResultDialogAsync(string result)
     {
         try
         {
-            IsBusy = true;
-            StatusMessage = "正在刷新数据...";
-
-            // 记录当前选择的工作表
-            var selectedPrimarySheets = new List<string>(SelectedPrimaryWorksheets);
-            var selectedSecondarySheets = new List<string>(SelectedSecondaryWorksheets);
-
-            // 完全清除现有数据
-            PrimaryWorksheets.Clear();
-            SecondaryWorksheets.Clear();
-            PrimaryColumns.Clear();
-            SecondaryColumns.Clear();
-            SelectedPrimaryMatchFields.Clear();
-            SelectedSecondaryMatchFields.Clear();
-            PrimaryPreviewData = null;
-            SecondaryPreviewData = null;
-
-            // 强制关闭文件并释放资源
-            if (PrimaryFile != null)
-            {
-                await _excelFileManager.CloseFileAsync(PrimaryFile);
-                PrimaryFile = null;
-            }
-
-            if (SecondaryFile != null)
-            {
-                await _excelFileManager.CloseFileAsync(SecondaryFile);
-                SecondaryFile = null;
-            }
-
-            // 执行垃圾回收以确保资源释放
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-
-            // 等待一小段时间确保文件句柄完全释放
-            await Task.Delay(500);
-
-            // 重新加载文件
-            if (!string.IsNullOrEmpty(PrimaryFilePath) && File.Exists(PrimaryFilePath))
-            {
-                // 更新文件的最后修改时间
-                if (File.Exists(PrimaryFilePath))
-                {
-                    var fileInfo = new FileInfo(PrimaryFilePath);
-                    fileInfo.Refresh(); // 刷新文件信息
-                    StatusMessage = $"正在加载主表文件 (最后修改: {fileInfo.LastWriteTime})...";
-                }
-
-                await LoadPrimaryFileAsync(true);
-            }
-
-            if (!string.IsNullOrEmpty(SecondaryFilePath) && File.Exists(SecondaryFilePath))
-            {
-                // 更新文件的最后修改时间
-                if (File.Exists(SecondaryFilePath))
-                {
-                    var fileInfo = new FileInfo(SecondaryFilePath);
-                    fileInfo.Refresh(); // 刷新文件信息
-                    StatusMessage = $"正在加载辅助表文件 (最后修改: {fileInfo.LastWriteTime})...";
-                }
-
-                await LoadSecondaryFileAsync(true);
-            }
-
-            // 恢复选择的工作表
-            if (PrimaryWorksheets.Count > 0)
-            {
-                foreach (var sheet in selectedPrimarySheets)
-                    if (PrimaryWorksheets.Contains(sheet))
-                        SelectedPrimaryWorksheets.Add(sheet);
-
-                // 如果没有工作表被选中，选择第一个
-                if (SelectedPrimaryWorksheets.Count == 0 && PrimaryWorksheets.Count > 0)
-                    SelectedPrimaryWorksheets.Add(PrimaryWorksheets[0]);
-
-                await LoadPrimaryWorksheetsInfoAsync();
-            }
-
-            if (SecondaryWorksheets.Count > 0)
-            {
-                foreach (var sheet in selectedSecondarySheets)
-                    if (SecondaryWorksheets.Contains(sheet))
-                        SelectedSecondaryWorksheets.Add(sheet);
-
-                // 如果没有工作表被选中，选择第一个
-                if (SelectedSecondaryWorksheets.Count == 0 && SecondaryWorksheets.Count > 0)
-                    SelectedSecondaryWorksheets.Add(SecondaryWorksheets[0]);
-
-                await LoadSecondaryWorksheetsInfoAsync();
-            }
-
-            // 验证和更新字段映射
-            ValidateAndUpdateFieldMappings();
-
-            // 刷新预览数据
-            await LoadPreviewDataWithFiltersAsync();
-
-            StatusMessage = "数据已刷新";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"刷新数据时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "刷新数据失败";
-            Debug.WriteLine($"刷新数据异常: {ex}");
-        }
-        finally
-        {
-            IsBusy = false;
-            NotifyCommandsCanExecuteChanged();
-        }
-    }
-
-    /// <summary>
-    ///     判断是否可以刷新数据
-    /// </summary>
-    private bool CanRefreshData()
-    {
-        return (!string.IsNullOrEmpty(PrimaryFilePath) || !string.IsNullOrEmpty(SecondaryFilePath)) && !IsBusy;
-    }
-
-    /// <summary>
-    ///     诊断匹配问题
-    /// </summary>
-    private async Task DiagnoseMatchingAsync()
-    {
-        if (!ValidateMatchingParameters())
-            return;
-
-        try
-        {
-            IsBusy = true;
-            StatusMessage = "正在诊断匹配问题...";
-
-            var result = await _excelFileManager.DiagnoseMatchFieldsAsync(
-                PrimaryFile,
-                SecondaryFile,
-                SelectedPrimaryMatchFields.ToList(),
-                SelectedSecondaryMatchFields.ToList());
-
-            // 显示诊断结果对话框
             var diagContent = new StackPanel { Margin = new Thickness(24) };
+
             diagContent.Children.Add(new TextBlock
             {
                 Text = "匹配问题诊断",
@@ -1690,376 +3318,108 @@ public class MainViewModel : BaseViewModel
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"复制到剪贴板时出错: {ex.Message}");
+                    LogDebug($"复制到剪贴板时出错: {ex.Message}");
                 }
             };
 
             closeButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
 
             var buttonPanel = new StackPanel
-                { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
             buttonPanel.Children.Add(copyButton);
             buttonPanel.Children.Add(closeButton);
             diagContent.Children.Add(buttonPanel);
 
             await DialogHost.Show(diagContent, "RootDialog");
-
-            StatusMessage = "诊断完成";
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"诊断匹配问题时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-            StatusMessage = "诊断匹配问题失败";
-            Debug.WriteLine($"诊断匹配问题异常: {ex}");
-        }
-        finally
-        {
-            IsBusy = false;
+            LogDebug($"显示诊断结果对话框时出错: {ex.Message}");
         }
     }
 
     /// <summary>
-    ///     判断是否可以诊断匹配
+    /// 显示刷新确认的MD3风格对话框
     /// </summary>
-    private bool CanDiagnoseMatching()
+    private async Task<bool> ShowRefreshConfirmationDialogAsync()
     {
-        return PrimaryFile != null && PrimaryFile.IsLoaded &&
-               SecondaryFile != null && SecondaryFile.IsLoaded &&
-               SelectedPrimaryMatchFields.Count > 0 &&
-               SelectedSecondaryMatchFields.Count > 0 &&
-               SelectedPrimaryMatchFields.Count == SelectedSecondaryMatchFields.Count &&
-               !IsBusy;
-    }
-
-    /// <summary>
-    ///     验证匹配参数
-    /// </summary>
-    private bool ValidateMatchingParameters()
-    {
-        if (PrimaryFile == null || !PrimaryFile.IsLoaded)
-        {
-            MessageBox.Show("请先加载主表文件", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (SecondaryFile == null || !SecondaryFile.IsLoaded)
-        {
-            MessageBox.Show("请先加载辅助表文件", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (PrimaryFile.SelectedWorksheets.Count == 0)
-        {
-            MessageBox.Show("请选择至少一个主表工作表", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (SecondaryFile.SelectedWorksheets.Count == 0)
-        {
-            MessageBox.Show("请选择至少一个辅助表工作表", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (SelectedPrimaryMatchFields.Count == 0 || SelectedSecondaryMatchFields.Count == 0)
-        {
-            MessageBox.Show("请选择匹配字段", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (SelectedPrimaryMatchFields.Count != SelectedSecondaryMatchFields.Count)
-        {
-            MessageBox.Show("主表和辅助表的匹配字段数量必须相等", "参数错误", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    ///     验证和更新字段映射
-    /// </summary>
-    private void ValidateAndUpdateFieldMappings()
-    {
-        // 处理主表匹配字段
-        var validPrimaryMatchFields = new ObservableCollection<string>();
-        foreach (var field in SelectedPrimaryMatchFields)
-            if (PrimaryColumns.Contains(field))
-                validPrimaryMatchFields.Add(field);
-
-        SelectedPrimaryMatchFields.Clear();
-        foreach (var field in validPrimaryMatchFields) SelectedPrimaryMatchFields.Add(field);
-
-        // 处理辅助表匹配字段
-        var validSecondaryMatchFields = new ObservableCollection<string>();
-        foreach (var field in SelectedSecondaryMatchFields)
-            if (SecondaryColumns.Contains(field))
-                validSecondaryMatchFields.Add(field);
-
-        SelectedSecondaryMatchFields.Clear();
-        foreach (var field in validSecondaryMatchFields) SelectedSecondaryMatchFields.Add(field);
-
-        // 处理字段映射
-        var validMappings = new List<FieldMapping>();
-        foreach (var mapping in FieldMappings)
-            // 检查源字段是否仍然存在
-            if (!string.IsNullOrEmpty(mapping.SourceField) && SecondaryColumns.Contains(mapping.SourceField))
-                validMappings.Add(mapping);
-
-        FieldMappings.Clear();
-        foreach (var mapping in validMappings)
-        {
-            // 必须重新添加PropertyChanged事件处理程序
-            ((INotifyPropertyChanged)mapping).PropertyChanged += FieldMapping_PropertyChanged;
-            FieldMappings.Add(mapping);
-        }
-    }
-
-    // 移除字段映射
-    private void RemoveFieldMapping(FieldMapping? mapping)
-    {
-        if (mapping != null)
-        {
-            // 移除属性变更监听
-            ((INotifyPropertyChanged)mapping).PropertyChanged -= FieldMapping_PropertyChanged;
-
-            FieldMappings.Remove(mapping);
-            NotifyCommandsCanExecuteChanged();
-        }
-    }
-
-    // 添加主表筛选条件
-    private void AddPrimaryFilter()
-    {
-        if (PrimaryColumns.Count == 0) return;
-
         try
         {
-            // 创建新的筛选条件
-            var filter = new FilterCondition
+            // 创建MD3风格的确认对话框内容
+            var refreshContent = new StackPanel { Margin = new Thickness(24) };
+
+            refreshContent.Children.Add(new TextBlock
             {
-                Field = PrimaryColumns.FirstOrDefault() ?? string.Empty,
-                Operator = FilterOperator.Equals,
-                Value = string.Empty,
-                LogicalOperator = LogicalOperator.And
-            };
-
-            // 监听属性变更以自动刷新预览
-            ((INotifyPropertyChanged)filter).PropertyChanged += FilterCondition_PropertyChanged;
-
-            // 添加到筛选列表
-            PrimaryFilters.Add(filter);
-            Debug.WriteLine($"添加主表筛选条件: {filter.Field} {filter.Operator} {filter.Value}");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"添加主表筛选条件时出错: {ex.Message}");
-            MessageBox.Show($"添加主表筛选条件时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    // 判断是否可以添加主表筛选条件
-    private bool CanAddPrimaryFilter()
-    {
-        var canAdd = PrimaryColumns != null && PrimaryColumns.Count > 0 && !IsBusy;
-        Debug.WriteLine($"CanAddPrimaryFilter: {canAdd}, PrimaryColumns数量: {PrimaryColumns?.Count ?? 0}");
-        return canAdd;
-    }
-
-    // 移除主表筛选条件
-    private void RemovePrimaryFilter(FilterCondition? filter)
-    {
-        if (filter != null)
-        {
-            // 移除属性变更监听
-            ((INotifyPropertyChanged)filter).PropertyChanged -= FilterCondition_PropertyChanged;
-
-            PrimaryFilters.Remove(filter);
-        }
-    }
-
-    // 添加辅助表筛选条件
-    private void AddSecondaryFilter()
-    {
-        if (SecondaryColumns.Count == 0) return;
-
-        try
-        {
-            // 创建新的筛选条件
-            var filter = new FilterCondition
-            {
-                Field = SecondaryColumns.FirstOrDefault() ?? string.Empty,
-                Operator = FilterOperator.Equals,
-                Value = string.Empty,
-                LogicalOperator = LogicalOperator.And
-            };
-
-            // 监听属性变更以自动刷新预览
-            ((INotifyPropertyChanged)filter).PropertyChanged += FilterCondition_PropertyChanged;
-
-            // 添加到筛选列表
-            SecondaryFilters.Add(filter);
-            Debug.WriteLine($"添加辅助表筛选条件: {filter.Field} {filter.Operator} {filter.Value}");
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"添加辅助表筛选条件时出错: {ex.Message}");
-            MessageBox.Show($"添加辅助表筛选条件时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    // 判断是否可以添加辅助表筛选条件
-    private bool CanAddSecondaryFilter()
-    {
-        var canAdd = SecondaryColumns != null && SecondaryColumns.Count > 0 && !IsBusy;
-        Debug.WriteLine($"CanAddSecondaryFilter: {canAdd}, SecondaryColumns数量: {SecondaryColumns?.Count ?? 0}");
-        return canAdd;
-    }
-
-    // 移除辅助表筛选条件
-    private void RemoveSecondaryFilter(FilterCondition? filter)
-    {
-        if (filter != null)
-        {
-            // 移除属性变更监听
-            ((INotifyPropertyChanged)filter).PropertyChanged -= FilterCondition_PropertyChanged;
-
-            SecondaryFilters.Remove(filter);
-        }
-    }
-
-    /// <summary>
-    ///     开始数据合并操作
-    /// </summary>
-    private async Task StartMergeAsync()
-    {
-        if (!ValidateMergeParameters())
-            return;
-
-        try
-        {
-            var startTime = DateTime.Now;
-            IsBusy = true;
-            StatusMessage = "准备开始合并数据...";
-            ProgressValue = 0;
-
-            // 强制刷新数据确保使用最新内容
-            var needRefresh = false;
-
-            // 检查文件是否有更新
-            if (File.Exists(PrimaryFilePath))
-            {
-                var currentLastWrite = File.GetLastWriteTime(PrimaryFilePath);
-                if (PrimaryFile == null || currentLastWrite > PrimaryFile.LastChecked)
-                {
-                    needRefresh = true;
-                    LogDebug($"检测到主表文件变更: {currentLastWrite} > {PrimaryFile?.LastChecked}");
-                }
-            }
-
-            if (File.Exists(SecondaryFilePath))
-            {
-                var currentLastWrite = File.GetLastWriteTime(SecondaryFilePath);
-                if (SecondaryFile == null || currentLastWrite > SecondaryFile.LastChecked)
-                {
-                    needRefresh = true;
-                    LogDebug($"检测到辅助表文件变更: {currentLastWrite} > {SecondaryFile?.LastChecked}");
-                }
-            }
-
-            if (needRefresh)
-            {
-                // 显示文件变更提示
-                var refreshContent = new StackPanel { Margin = new Thickness(24) };
-                refreshContent.Children.Add(new TextBlock
-                {
-                    Text = "检测到文件变更",
-                    FontSize = 18,
-                    FontWeight = FontWeights.Medium,
-                    Margin = new Thickness(0, 0, 0, 16)
-                });
-
-                refreshContent.Children.Add(new TextBlock
-                {
-                    Text = "Excel文件已在外部被修改。是否刷新数据后再继续合并？",
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 0, 0, 24)
-                });
-
-                var buttonPanel1 = new StackPanel
-                    { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-                var continueButton = new Button
-                {
-                    Content = "直接继续",
-                    Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
-                    Margin = new Thickness(0, 0, 8, 0)
-                };
-
-                var refreshButton = new Button
-                {
-                    Content = "刷新后合并",
-                    Style = Application.Current.Resources["MaterialDesignOutlinedLightButton"] as Style,
-                    IsDefault = true
-                };
-
-                buttonPanel1.Children.Add(continueButton);
-                buttonPanel1.Children.Add(refreshButton);
-                refreshContent.Children.Add(buttonPanel1);
-
-                var refreshFirst = false;
-                continueButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
-                refreshButton.Click += (s, e) =>
-                {
-                    refreshFirst = true;
-                    DialogHost.Close("RootDialog");
-                };
-
-                await DialogHost.Show(refreshContent, "RootDialog");
-
-                if (refreshFirst)
-                {
-                    // 先刷新数据
-                    await RefreshDataAsync();
-
-                    // 再次验证合并参数
-                    if (!ValidateMergeParameters())
-                        return;
-                }
-            }
-
-            // 设置进度报告回调
-            var progress = new Progress<(int Current, int Total, string Message)>(report =>
-            {
-                ProgressValue = report.Current;
-                ProgressMaximum = report.Total;
-                StatusMessage = report.Message;
+                Text = "检测到文件变更",
+                FontSize = 18,
+                FontWeight = FontWeights.Medium,
+                Margin = new Thickness(0, 0, 0, 16)
             });
 
-            // 根据选择的工作表数量选择不同的合并方法
-            var result = PrimaryFile.SelectedWorksheets.Count > 1 || SecondaryFile.SelectedWorksheets.Count > 1
-                ? await _excelFileManager.MergeMultipleWorksheetsAsync(
-                    PrimaryFile,
-                    SecondaryFile,
-                    SelectedPrimaryMatchFields.ToList(),
-                    SelectedSecondaryMatchFields.ToList(),
-                    FieldMappings.ToList(),
-                    PrimaryFilters.ToList(),
-                    SecondaryFilters.ToList(),
-                    progress)
-                : await _excelFileManager.MergeExcelFilesAsync(
-                    PrimaryFile,
-                    SecondaryFile,
-                    SelectedPrimaryMatchFields.ToList(),
-                    SelectedSecondaryMatchFields.ToList(),
-                    FieldMappings.ToList(),
-                    PrimaryFilters.ToList(),
-                    SecondaryFilters.ToList(),
-                    progress);
+            refreshContent.Children.Add(new TextBlock
+            {
+                Text = "Excel文件已在外部被修改。是否刷新数据后再继续合并？",
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 24)
+            });
 
-            var endTime = DateTime.Now;
-            var duration = endTime - startTime;
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
 
+            var continueButton = new Button
+            {
+                Content = "直接继续",
+                Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+
+            var refreshButton = new Button
+            {
+                Content = "刷新后合并",
+                Style = Application.Current.Resources["MaterialDesignOutlinedLightButton"] as Style,
+                IsDefault = true
+            };
+
+            buttonPanel.Children.Add(continueButton);
+            buttonPanel.Children.Add(refreshButton);
+            refreshContent.Children.Add(buttonPanel);
+
+            var refreshFirst = false;
+            continueButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
+            refreshButton.Click += (s, e) =>
+            {
+                refreshFirst = true;
+                DialogHost.Close("RootDialog");
+            };
+
+            await DialogHost.Show(refreshContent, "RootDialog");
+            return refreshFirst;
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"显示刷新确认对话框时出错: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    ///     显示合并结果的MD3风格对话框
+    /// </summary>
+    private async Task ShowMergeResultDialogAsync(
+        (int ProcessedRows, int MatchedRows, int NewColumnsAdded, string OutputPath) result, TimeSpan duration)
+    {
+        try
+        {
             // 显示结果对话框
             var successContent = new StackPanel { Margin = new Thickness(24) };
+
             successContent.Children.Add(new TextBlock
             {
                 Text = "合并完成！",
@@ -2067,7 +3427,6 @@ public class MainViewModel : BaseViewModel
                 FontWeight = FontWeights.Medium,
                 Margin = new Thickness(0, 0, 0, 16)
             });
-
 
             var resultGrid = new Grid();
             resultGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
@@ -2077,7 +3436,6 @@ public class MainViewModel : BaseViewModel
             resultGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             resultGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             resultGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
 
             // 添加结果信息
             AddResultRow(resultGrid, 0, "处理记录数:", result.ProcessedRows.ToString());
@@ -2091,15 +3449,18 @@ public class MainViewModel : BaseViewModel
             // 添加按钮
             var buttonPanel = new StackPanel
             {
-                Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 24, 0, 0)
             };
+
             var openFileButton = new Button
             {
                 Content = "打开文件位置",
                 Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
                 Margin = new Thickness(0, 0, 8, 0)
             };
+
             var closeButton = new Button
             {
                 Content = "关闭",
@@ -2117,7 +3478,7 @@ public class MainViewModel : BaseViewModel
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"打开文件位置时出错: {ex.Message}");
+                    LogDebug($"打开文件位置时出错: {ex.Message}");
                 }
                 finally
                 {
@@ -2133,15 +3494,6 @@ public class MainViewModel : BaseViewModel
 
             // 显示成功对话框
             await DialogHost.Show(successContent, "RootDialog");
-
-            StatusMessage = "合并完成";
-
-            // 更新文件的LastChecked属性以记录最新检查时间
-            if (PrimaryFile != null && File.Exists(PrimaryFilePath))
-                PrimaryFile.LastChecked = File.GetLastWriteTime(PrimaryFilePath);
-
-            if (SecondaryFile != null && File.Exists(SecondaryFilePath))
-                SecondaryFile.LastChecked = File.GetLastWriteTime(SecondaryFilePath);
         }
         catch (Exception ex)
         {
@@ -2229,36 +3581,13 @@ public class MainViewModel : BaseViewModel
             await DialogHost.Show(errorContent, "RootDialog");
 
             StatusMessage = "合并数据失败";
-            Debug.WriteLine($"合并数据异常: {ex}");
+
+            LogDebug($"显示合并结果对话框时出错: {ex.Message}");
         }
         finally
         {
             IsBusy = false;
         }
-    }
-
-    /// <summary>
-    ///     格式化时间
-    /// </summary>
-    /// <param name="duration"></param>
-    /// <returns></returns>
-    private string FormatDuration(TimeSpan duration)
-    {
-        if (duration.TotalHours >= 1)
-            return $"{duration.Hours}小时{duration.Minutes}分钟{duration.Seconds}秒";
-        if (duration.TotalMinutes >= 1)
-            return $"{duration.Minutes}分钟{duration.Seconds}秒";
-        if (duration.TotalSeconds >= 1)
-            return $"{duration.Seconds}.{duration.Milliseconds:000}秒";
-        return $"{duration.Milliseconds}毫秒";
-    }
-
-    /// <summary>
-    ///     记录调试信息
-    /// </summary>
-    private void LogDebug(string message)
-    {
-        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.fff} - {message}");
     }
 
     /// <summary>
@@ -2292,215 +3621,87 @@ public class MainViewModel : BaseViewModel
     }
 
     /// <summary>
-    ///     检查文件是否有变更
+    ///     显示合并错误的MD3风格对话框
     /// </summary>
-    private Task<bool> CheckFilesForChangesAsync()
-    {
-        return Task.Run(() =>
-        {
-            try
-            {
-                var hasChanges = false;
-
-                // 检查主表文件
-                if (!string.IsNullOrEmpty(PrimaryFilePath) && File.Exists(PrimaryFilePath))
-                {
-                    var lastWriteTime = File.GetLastWriteTime(PrimaryFilePath);
-                    if (PrimaryFile != null && PrimaryFile.LastChecked < lastWriteTime) hasChanges = true;
-                }
-
-                // 检查辅助表文件
-                if (!string.IsNullOrEmpty(SecondaryFilePath) && File.Exists(SecondaryFilePath))
-                {
-                    var lastWriteTime = File.GetLastWriteTime(SecondaryFilePath);
-                    if (SecondaryFile != null && SecondaryFile.LastChecked < lastWriteTime) hasChanges = true;
-                }
-
-                return hasChanges;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"检查文件变更时出错: {ex.Message}");
-                return false;
-            }
-        });
-    }
-
-    // 验证合并参数
-    private bool ValidateMergeParameters()
-    {
-        // 验证文件是否已加载
-        if (PrimaryFile == null || !PrimaryFile.IsLoaded)
-        {
-            MessageBox.Show("请先加载主表文件", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (SecondaryFile == null || !SecondaryFile.IsLoaded)
-        {
-            MessageBox.Show("请先加载辅助表文件", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        // 验证是否选择了工作表
-        if (SelectedPrimaryWorksheets.Count == 0)
-        {
-            MessageBox.Show("请选择至少一个主表工作表", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (SelectedSecondaryWorksheets.Count == 0)
-        {
-            MessageBox.Show("请选择至少一个辅助表工作表", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        // 验证匹配字段
-        if (SelectedPrimaryMatchFields.Count == 0)
-        {
-            MessageBox.Show("请至少选择一个主表匹配字段", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (SelectedSecondaryMatchFields.Count == 0)
-        {
-            MessageBox.Show("请至少选择一个辅助表匹配字段", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        if (SelectedPrimaryMatchFields.Count != SelectedSecondaryMatchFields.Count)
-        {
-            MessageBox.Show("主表和辅助表的匹配字段数量必须相同", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        // 验证字段映射
-        if (FieldMappings.Count == 0)
-        {
-            MessageBox.Show("请至少添加一个字段映射", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-
-        foreach (var mapping in FieldMappings)
-        {
-            if (string.IsNullOrEmpty(mapping.SourceField))
-            {
-                MessageBox.Show("字段映射中的源字段不能为空", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return false;
-            }
-
-            if (string.IsNullOrEmpty(mapping.TargetField))
-            {
-                MessageBox.Show("字段映射中的目标字段不能为空", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    // 判断是否可以开始合并
-    private bool CanStartMerge()
-    {
-        return PrimaryFile != null && PrimaryFile.IsLoaded &&
-               SecondaryFile != null && SecondaryFile.IsLoaded &&
-               SelectedPrimaryWorksheets.Count > 0 &&
-               SelectedSecondaryWorksheets.Count > 0 &&
-               SelectedPrimaryMatchFields.Count > 0 &&
-               SelectedSecondaryMatchFields.Count > 0 &&
-               FieldMappings.Count > 0 &&
-               !IsBusy;
-    }
-
-    // 保存配置
-    /// <summary>
-    ///     保存配置
-    /// </summary>
-    private async Task SaveConfigurationAsync()
+    private async Task ShowMergeErrorDialogAsync(string errorMessage)
     {
         try
         {
-            // 准备配置对象
-            var config = CreateConfigurationFromCurrentState();
+            // 显示错误对话框
+            var errorContent = new StackPanel { Margin = new Thickness(24) };
 
-            // 创建Material Design 3风格的对话框内容
-            var configNameContent = new StackPanel { Margin = new Thickness(24) };
-
-            // 添加标题
-            configNameContent.Children.Add(new TextBlock
+            errorContent.Children.Add(new TextBlock
             {
-                Text = "保存配置",
+                Text = "合并数据时出错",
                 FontSize = 18,
                 FontWeight = FontWeights.Medium,
-                Margin = new Thickness(0, 0, 0, 24)
-            });
-
-            // 添加说明文字
-            configNameContent.Children.Add(new TextBlock
-            {
-                Text = "请输入配置名称:",
+                Foreground = new SolidColorBrush(Colors.Red),
                 Margin = new Thickness(0, 0, 0, 16)
             });
 
-            // 添加输入框
-            var textBox = new TextBox
+            errorContent.Children.Add(new TextBlock
             {
-                Text = config.Name,
-                Style = Application.Current.Resources["MaterialDesignOutlinedTextBox"] as Style,
+                Text = errorMessage,
+                TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 24)
-            };
-            HintAssist.SetHint(textBox, "配置名称");
-            configNameContent.Children.Add(textBox);
+            });
 
-            // 添加按钮
-            var buttonPanel2 = new StackPanel
-                { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var cancelButton = new Button
+            var errorButtonPanel = new StackPanel
             {
-                Content = "取消",
-                Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
-                Margin = new Thickness(0, 0, 8, 0)
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
             };
-            var saveButton = new Button
+
+            var retryButton = new Button
             {
-                Content = "保存",
-                Style = Application.Current.Resources["MaterialDesignRaisedButton"] as Style,
+                Content = "重试",
+                Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
+                Margin = new Thickness(0, 0, 8, 0),
+                Command = new RelayCommand(() =>
+                {
+                    DialogHost.Close("RootDialog");
+                    // 延迟执行，确保对话框已关闭
+                    Application.Current.Dispatcher.BeginInvoke(new Action(async () =>
+                    {
+                        await Task.Delay(100);
+                        await StartMergeAsync();
+                    }));
+                })
+            };
+
+            var okButton = new Button
+            {
+                Content = "确定",
+                Style = Application.Current.Resources["MaterialDesignOutlinedLightButton"] as Style,
                 IsDefault = true
             };
-            buttonPanel2.Children.Add(cancelButton);
-            buttonPanel2.Children.Add(saveButton);
-            configNameContent.Children.Add(buttonPanel2);
 
-            // 显示对话框
-            var dialogResult = false;
+            okButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
+            errorButtonPanel.Children.Add(retryButton);
+            errorButtonPanel.Children.Add(okButton);
+            errorContent.Children.Add(errorButtonPanel);
 
-            cancelButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
-            saveButton.Click += (s, e) =>
-            {
-                dialogResult = true;
-                DialogHost.Close("RootDialog");
-            };
+            await DialogHost.Show(errorContent, "RootDialog");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"显示合并错误对话框时出错: {ex.Message}");
+        }
+    }
 
-            await DialogHost.Show(configNameContent, "RootDialog");
-
-            if (!dialogResult)
-                return;
-
-            config.Name = textBox.Text;
-            if (string.IsNullOrEmpty(config.Name))
-                config.Name = $"配置_{DateTime.Now:yyyyMMddHHmmss}";
-
-            StatusMessage = "正在保存配置...";
-            IsBusy = true;
-
-            var filePath = await _configurationManager.SaveConfigurationAsync(config);
-
+    /// <summary>
+    /// 显示成功消息的MD3风格对话框
+    /// </summary>
+    private async Task ShowSuccessDialogAsync(string title, string message)
+    {
+        try
+        {
             // 显示成功消息
             var successContent = new StackPanel { Margin = new Thickness(24) };
 
             successContent.Children.Add(new TextBlock
             {
-                Text = "保存成功",
+                Text = title,
                 FontSize = 18,
                 FontWeight = FontWeights.Medium,
                 Margin = new Thickness(0, 0, 0, 16)
@@ -2508,7 +3709,7 @@ public class MainViewModel : BaseViewModel
 
             successContent.Children.Add(new TextBlock
             {
-                Text = $"配置已保存到：{filePath}",
+                Text = message,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 24)
             });
@@ -2525,237 +3726,38 @@ public class MainViewModel : BaseViewModel
             successContent.Children.Add(okButton);
 
             await DialogHost.Show(successContent, "RootDialog");
-
-            StatusMessage = "配置已保存";
         }
         catch (Exception ex)
         {
-            // 显示错误消息
-            var errorContent = new StackPanel { Margin = new Thickness(24) };
-
-            errorContent.Children.Add(new TextBlock
-            {
-                Text = "保存失败",
-                FontSize = 18,
-                FontWeight = FontWeights.Medium,
-                Foreground = new SolidColorBrush(Colors.Red),
-                Margin = new Thickness(0, 0, 0, 16)
-            });
-
-            errorContent.Children.Add(new TextBlock
-            {
-                Text = $"保存配置时出错: {ex.Message}",
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 24)
-            });
-
-            var okButton = new Button
-            {
-                Content = "确定",
-                Style = Application.Current.Resources["MaterialDesignOutlinedLightButton"] as Style,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                IsDefault = true
-            };
-
-            okButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
-            errorContent.Children.Add(okButton);
-
-            await DialogHost.Show(errorContent, "RootDialog");
-
-            StatusMessage = "保存配置失败";
-            Debug.WriteLine($"保存配置异常: {ex}");
-        }
-        finally
-        {
-            IsBusy = false;
+            LogDebug($"显示成功对话框时出错: {ex.Message}");
         }
     }
 
     /// <summary>
-    ///     加载配置
+    /// 显示无配置的MD3风格对话框
     /// </summary>
-    /// <summary>
-    ///     加载配置
-    /// </summary>
-    private async Task LoadConfigurationAsync()
+    private async Task ShowNoConfigurationsDialogAsync()
     {
         try
         {
-            StatusMessage = "正在获取配置列表...";
-            IsBusy = true;
+            // 显示无配置消息
+            var noConfigContent = new StackPanel { Margin = new Thickness(24) };
 
-            var configurations = await _configurationManager.GetAllConfigurationsAsync();
-
-            if (configurations.Count == 0)
+            noConfigContent.Children.Add(new TextBlock
             {
-                // 显示无配置消息
-                var noConfigContent = new StackPanel { Margin = new Thickness(24) };
-
-                noConfigContent.Children.Add(new TextBlock
-                {
-                    Text = "没有可用配置",
-                    FontSize = 18,
-                    FontWeight = FontWeights.Medium,
-                    Margin = new Thickness(0, 0, 0, 16)
-                });
-
-                noConfigContent.Children.Add(new TextBlock
-                {
-                    Text = "没有找到任何保存的配置。请先保存一个配置。",
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 0, 0, 24)
-                });
-
-                var buttonPanel1 = new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    HorizontalAlignment = HorizontalAlignment.Right
-                };
-
-                var openDirButton1 = new Button
-                {
-                    Content = "打开配置目录",
-                    Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
-                    Margin = new Thickness(0, 0, 8, 0)
-                };
-
-                var okButton = new Button
-                {
-                    Content = "确定",
-                    Style = Application.Current.Resources["MaterialDesignOutlinedLightButton"] as Style,
-                    IsDefault = true
-                };
-
-                openDirButton1.Click += (s, e) =>
-                {
-                    OpenConfigurationDirectory();
-                    DialogHost.Close("RootDialog");
-                };
-
-                okButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
-
-                buttonPanel1.Children.Add(openDirButton1);
-                buttonPanel1.Children.Add(okButton);
-                noConfigContent.Children.Add(buttonPanel1);
-
-                await DialogHost.Show(noConfigContent, "RootDialog");
-                return;
-            }
-
-            // 创建配置选择对话框
-            var dialogContent = new StackPanel { Margin = new Thickness(24) };
-
-            // 添加标题
-            dialogContent.Children.Add(new TextBlock
-            {
-                Text = "选择配置",
+                Text = "没有可用配置",
                 FontSize = 18,
                 FontWeight = FontWeights.Medium,
+                Margin = new Thickness(0, 0, 0, 16)
+            });
+
+            noConfigContent.Children.Add(new TextBlock
+            {
+                Text = "没有找到任何保存的配置。请先保存一个配置。",
+                TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 24)
             });
 
-            // 添加配置列表容器
-            var cardContainer = new Card
-            {
-                Style = Application.Current.Resources["MD3ListContainer"] as Style,
-                Margin = new Thickness(0, 0, 0, 24),
-                MaxHeight = 300
-            };
-
-            // 添加配置列表
-            var listBox = new ListBox
-            {
-                Style = Application.Current.Resources["MD3ListBox"] as Style,
-                SelectionMode = SelectionMode.Single
-            };
-
-            foreach (var configuration in configurations)
-            {
-                var configItem = new ListBoxItem
-                {
-                    Tag = configuration.Path
-                };
-
-                // 创建配置项内容
-                var itemGrid = new Grid();
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var contentPanel = new StackPanel { Orientation = Orientation.Vertical };
-
-                var titleBlock = new TextBlock
-                {
-                    Text = configuration.Name,
-                    FontWeight = FontWeights.Medium,
-                    Margin = new Thickness(0, 0, 0, 4)
-                };
-
-                var dateBlock = new TextBlock
-                {
-                    Text = $"创建于 {File.GetCreationTime(configuration.Path):yyyy-MM-dd HH:mm:ss}",
-                    FontSize = 12,
-                    Foreground = new SolidColorBrush(Colors.Gray)
-                };
-
-                contentPanel.Children.Add(titleBlock);
-                contentPanel.Children.Add(dateBlock);
-
-                // 删除按钮
-                var deleteButton = new Button
-                {
-                    Style = Application.Current.Resources["MaterialDesignIconButton"] as Style,
-                    ToolTip = "删除此配置",
-                    Margin = new Thickness(8, 0, 0, 0)
-                };
-
-                var deleteIcon = new PackIcon
-                {
-                    Kind = PackIconKind.DeleteOutline,
-                    Width = 20,
-                    Height = 20,
-                    Foreground = new SolidColorBrush(Colors.Red)
-                };
-
-                deleteButton.Content = deleteIcon;
-
-                // 删除按钮事件处理
-                deleteButton.Click += async (s, e) =>
-                {
-                    e.Handled = true; // 防止触发ListBoxItem选择
-
-                    // 执行删除操作（使用NestedDialog避免冲突）
-                    await DeleteConfigurationAsync(configuration);
-
-                    // 如果删除成功，重新加载配置列表
-                    if (!File.Exists(configuration.Path)) // 文件已被删除
-                    {
-                        // 关闭当前对话框
-                        DialogHost.Close("RootDialog");
-
-                        // 等待对话框完全关闭后重新打开
-                        await Task.Delay(100);
-                        await LoadConfigurationAsync();
-                    }
-                };
-
-                Grid.SetColumn(contentPanel, 0);
-                Grid.SetColumn(deleteButton, 1);
-
-                itemGrid.Children.Add(contentPanel);
-                itemGrid.Children.Add(deleteButton);
-
-                configItem.Content = itemGrid;
-                listBox.Items.Add(configItem);
-            }
-
-            // 选择第一项
-            if (listBox.Items.Count > 0)
-                listBox.SelectedIndex = 0;
-
-            cardContainer.Content = listBox;
-            dialogContent.Children.Add(cardContainer);
-
-            // 添加按钮
             var buttonPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -2764,452 +3766,171 @@ public class MainViewModel : BaseViewModel
 
             var openDirButton = new Button
             {
-                Content = "打开目录",
+                Content = "打开配置目录",
                 Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
                 Margin = new Thickness(0, 0, 8, 0)
             };
-
-            var cancelButton = new Button
-            {
-                Content = "取消",
-                Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
-                Margin = new Thickness(0, 0, 8, 0)
-            };
-
-            var selectButton = new Button
-            {
-                Content = "选择",
-                Style = Application.Current.Resources["MaterialDesignOutlinedLightButton"] as Style,
-                IsDefault = true
-            };
-
-            buttonPanel.Children.Add(openDirButton);
-            buttonPanel.Children.Add(cancelButton);
-            buttonPanel.Children.Add(selectButton);
-            dialogContent.Children.Add(buttonPanel);
-
-            // 显示对话框
-            var dialogResult = false;
-
-            openDirButton.Click += (s, e) => { OpenConfigurationDirectory(); };
-
-            cancelButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
-            selectButton.Click += (s, e) =>
-            {
-                dialogResult = true;
-                DialogHost.Close("RootDialog");
-            };
-
-            await DialogHost.Show(dialogContent, "RootDialog");
-
-            if (!dialogResult || listBox.SelectedItem == null)
-                return;
-
-            var configPath = ((ListBoxItem)listBox.SelectedItem).Tag as string;
-            if (string.IsNullOrEmpty(configPath))
-                return;
-
-            StatusMessage = "正在加载配置...";
-            var config = await _configurationManager.LoadConfigurationAsync(configPath);
-
-            // 应用配置
-            await ApplyConfigurationAsync(config);
-
-            StatusMessage = $"配置 '{config.Name}' 已加载";
-        }
-        catch (Exception ex)
-        {
-            // 显示错误消息
-            var errorContent = new StackPanel { Margin = new Thickness(24) };
-
-            errorContent.Children.Add(new TextBlock
-            {
-                Text = "加载失败",
-                FontSize = 18,
-                FontWeight = FontWeights.Medium,
-                Foreground = new SolidColorBrush(Colors.Red),
-                Margin = new Thickness(0, 0, 0, 16)
-            });
-
-            errorContent.Children.Add(new TextBlock
-            {
-                Text = $"加载配置时出错: {ex.Message}",
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 24)
-            });
 
             var okButton = new Button
             {
                 Content = "确定",
                 Style = Application.Current.Resources["MaterialDesignOutlinedLightButton"] as Style,
-                HorizontalAlignment = HorizontalAlignment.Right,
                 IsDefault = true
             };
 
+            openDirButton.Click += (s, e) =>
+            {
+                OpenConfigurationDirectory();
+                DialogHost.Close("RootDialog");
+            };
+
             okButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
-            errorContent.Children.Add(okButton);
 
-            await DialogHost.Show(errorContent, "RootDialog");
+            buttonPanel.Children.Add(openDirButton);
+            buttonPanel.Children.Add(okButton);
+            noConfigContent.Children.Add(buttonPanel);
 
-            StatusMessage = "加载配置失败";
-            Debug.WriteLine($"加载配置异常: {ex}");
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    // 重置配置
-    private void ResetConfiguration()
-    {
-        // 使用MD3风格对话框确认重置
-        var dialogContent = new StackPanel { Margin = new Thickness(16) };
-        dialogContent.Children.Add(new TextBlock
-        {
-            Text = "确定要重置所有配置吗？",
-            FontSize = 16,
-            Margin = new Thickness(0, 0, 0, 8)
-        });
-        dialogContent.Children.Add(new TextBlock
-        {
-            Text = "这将清除当前的所有设置。",
-            Opacity = 0.7,
-            Margin = new Thickness(0, 0, 0, 16)
-        });
-
-        var buttonPanel = new StackPanel
-            { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        var cancelButton = new Button
-        {
-            Content = "取消", Style = Application.Current.Resources["MaterialDesignOutlinedButton"] as Style,
-            Margin = new Thickness(8, 0, 0, 0)
-        };
-        var confirmButton = new Button
-            { Content = "确定", Style = Application.Current.Resources["MaterialDesignRaisedButton"] as Style };
-        buttonPanel.Children.Add(cancelButton);
-        buttonPanel.Children.Add(confirmButton);
-        dialogContent.Children.Add(buttonPanel);
-
-        // 显示对话框
-        var dialogResult = false;
-
-        // 使用Material Design的DialogHost
-        cancelButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
-        confirmButton.Click += (s, e) =>
-        {
-            dialogResult = true;
-            DialogHost.Close("RootDialog");
-        };
-
-        DialogHost.Show(dialogContent, "RootDialog").ContinueWith(t =>
-        {
-            if (dialogResult)
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    try
-                    {
-                        // 清空文件路径和密码
-                        PrimaryFilePath = string.Empty;
-                        PrimaryFilePassword = string.Empty;
-                        SecondaryFilePath = string.Empty;
-                        SecondaryFilePassword = string.Empty;
-
-                        // 重置文件对象
-                        PrimaryFile = new ExcelFile();
-                        SecondaryFile = new ExcelFile();
-
-                        // 清空集合
-                        PrimaryWorksheets.Clear();
-                        SecondaryWorksheets.Clear();
-                        PrimaryColumns.Clear();
-                        SecondaryColumns.Clear();
-                        SelectedPrimaryMatchFields.Clear();
-                        SelectedSecondaryMatchFields.Clear();
-                        SelectedPrimaryWorksheets.Clear();
-                        SelectedSecondaryWorksheets.Clear();
-                        FieldMappings.Clear();
-                        PrimaryFilters.Clear();
-                        SecondaryFilters.Clear();
-
-                        // 清空预览数据
-                        PrimaryPreviewData = null;
-                        SecondaryPreviewData = null;
-
-                        // 重置状态
-                        StatusMessage = "已重置所有配置";
-                        ProgressValue = 0;
-
-                        // 通知命令状态更新
-                        NotifyCommandsCanExecuteChanged();
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"重置配置时出错: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                        Debug.WriteLine($"重置配置异常: {ex}");
-                    }
-                });
-        });
-    }
-
-    private void ClearPrimaryFile()
-    {
-        PrimaryFilePath = string.Empty;
-        PrimaryFilePassword = string.Empty;
-        PrimaryFile = new ExcelFile();
-        PrimaryWorksheets.Clear();
-        PrimaryColumns.Clear();
-        SelectedPrimaryWorksheets.Clear();
-        SelectedPrimaryMatchFields.Clear();
-        PrimaryPreviewData = null;
-        PrimaryFilters.Clear();
-        StatusMessage = "已清除主表文件";
-    }
-
-    private void ClearSecondaryFile()
-    {
-        SecondaryFilePath = string.Empty;
-        SecondaryFilePassword = string.Empty;
-        SecondaryFile = new ExcelFile();
-        SecondaryWorksheets.Clear();
-        SecondaryColumns.Clear();
-        SelectedSecondaryWorksheets.Clear();
-        SelectedSecondaryMatchFields.Clear();
-        SecondaryPreviewData = null;
-        SecondaryFilters.Clear();
-        FieldMappings.Clear(); // 清除字段映射
-        StatusMessage = "已清除辅助表文件";
-    }
-
-    /// <summary>
-    ///     从当前状态创建配置对象
-    /// </summary>
-    private Configuration CreateConfigurationFromCurrentState()
-    {
-        var config = new Configuration
-        {
-            Name = $"配置_{DateTime.Now:yyyyMMddHHmmss}",
-            PrimaryFilePath = PrimaryFilePath,
-            PrimaryFilePassword = PrimaryFilePassword,
-            SecondaryFilePath = SecondaryFilePath,
-            SecondaryFilePassword = SecondaryFilePassword
-        };
-
-        // 处理工作表信息
-        if (PrimaryFile != null)
-        {
-            config.PrimaryWorksheet = PrimaryFile.SelectedWorksheet;
-            config.PrimaryWorksheets = new List<string>(SelectedPrimaryWorksheets);
-        }
-
-        if (SecondaryFile != null)
-        {
-            config.SecondaryWorksheet = SecondaryFile.SelectedWorksheet;
-            config.SecondaryWorksheets = new List<string>(SelectedSecondaryWorksheets);
-        }
-
-        // 处理字段匹配和映射
-        config.PrimaryMatchFields = new List<string>(SelectedPrimaryMatchFields);
-        config.SecondaryMatchFields = new List<string>(SelectedSecondaryMatchFields);
-
-        // 深度复制字段映射
-        config.FieldMappings = FieldMappings.Select(m => new FieldMapping
-        {
-            SourceField = m.SourceField,
-            TargetField = m.TargetField
-        }).ToList();
-
-        // 深度复制筛选条件
-        config.PrimaryFilters = PrimaryFilters.Select(f => new FilterCondition
-        {
-            Field = f.Field,
-            Operator = f.Operator,
-            Value = f.Value,
-            LogicalOperator = f.LogicalOperator
-        }).ToList();
-
-        config.SecondaryFilters = SecondaryFilters.Select(f => new FilterCondition
-        {
-            Field = f.Field,
-            Operator = f.Operator,
-            Value = f.Value,
-            LogicalOperator = f.LogicalOperator
-        }).ToList();
-
-        return config;
-    }
-
-    /// <summary>
-    ///     应用配置
-    /// </summary>
-    private async Task ApplyConfigurationAsync(Configuration config)
-    {
-        if (config == null)
-            return;
-
-        try
-        {
-            // 重置现有配置前先记录当前状态
-            IsBusy = true;
-            StatusMessage = $"正在应用配置: {config.Name}";
-
-            // 设置文件路径和密码
-            PrimaryFilePath = config.PrimaryFilePath;
-            PrimaryFilePassword = config.PrimaryFilePassword;
-            SecondaryFilePath = config.SecondaryFilePath;
-            SecondaryFilePassword = config.SecondaryFilePassword;
-
-            // 加载文件
-            if (!string.IsNullOrEmpty(PrimaryFilePath) && File.Exists(PrimaryFilePath)) await LoadPrimaryFileAsync();
-
-            if (!string.IsNullOrEmpty(SecondaryFilePath) && File.Exists(SecondaryFilePath))
-                await LoadSecondaryFileAsync();
-
-            // 设置工作表 - 必须等文件加载完成
-            if (PrimaryFile != null && PrimaryFile.IsLoaded)
-            {
-                SelectedPrimaryWorksheets.Clear();
-
-                // 先检查多表配置
-                if (config.PrimaryWorksheets != null && config.PrimaryWorksheets.Count > 0)
-                {
-                    foreach (var worksheet in config.PrimaryWorksheets)
-                        if (PrimaryWorksheets.Contains(worksheet))
-                            SelectedPrimaryWorksheets.Add(worksheet);
-                }
-                // 再检查单表配置(向后兼容)
-                else if (!string.IsNullOrEmpty(config.PrimaryWorksheet) &&
-                         PrimaryWorksheets.Contains(config.PrimaryWorksheet))
-                {
-                    SelectedPrimaryWorksheets.Add(config.PrimaryWorksheet);
-                }
-
-                // 如果有选择的工作表，加载工作表信息
-                if (SelectedPrimaryWorksheets.Count > 0) await LoadPrimaryWorksheetsInfoAsync();
-            }
-
-            if (SecondaryFile != null && SecondaryFile.IsLoaded)
-            {
-                SelectedSecondaryWorksheets.Clear();
-
-                // 先检查多表配置
-                if (config.SecondaryWorksheets != null && config.SecondaryWorksheets.Count > 0)
-                {
-                    foreach (var worksheet in config.SecondaryWorksheets)
-                        if (SecondaryWorksheets.Contains(worksheet))
-                            SelectedSecondaryWorksheets.Add(worksheet);
-                }
-                // 再检查单表配置(向后兼容)
-                else if (!string.IsNullOrEmpty(config.SecondaryWorksheet) &&
-                         SecondaryWorksheets.Contains(config.SecondaryWorksheet))
-                {
-                    SelectedSecondaryWorksheets.Add(config.SecondaryWorksheet);
-                }
-
-                // 如果有选择的工作表，加载工作表信息
-                if (SelectedSecondaryWorksheets.Count > 0) await LoadSecondaryWorksheetsInfoAsync();
-            }
-
-            // 设置匹配字段 - 必须等工作表信息加载完成
-            if (config.PrimaryMatchFields != null && PrimaryColumns.Count > 0)
-            {
-                SelectedPrimaryMatchFields.Clear();
-                foreach (var field in config.PrimaryMatchFields)
-                    if (PrimaryColumns.Contains(field))
-                        SelectedPrimaryMatchFields.Add(field);
-            }
-
-            if (config.SecondaryMatchFields != null && SecondaryColumns.Count > 0)
-            {
-                SelectedSecondaryMatchFields.Clear();
-                foreach (var field in config.SecondaryMatchFields)
-                    if (SecondaryColumns.Contains(field))
-                        SelectedSecondaryMatchFields.Add(field);
-            }
-
-            // 设置字段映射 - 必须等工作表信息加载完成
-            if (config.FieldMappings != null)
-            {
-                FieldMappings.Clear();
-                foreach (var mapping in config.FieldMappings)
-                    // 源字段必须存在于辅助表中
-                    if (!string.IsNullOrEmpty(mapping.SourceField) && SecondaryColumns.Contains(mapping.SourceField))
-                    {
-                        var newMapping = new FieldMapping
-                        {
-                            SourceField = mapping.SourceField,
-                            TargetField = mapping.TargetField
-                        };
-
-                        // 监听属性变更
-                        ((INotifyPropertyChanged)newMapping).PropertyChanged += FieldMapping_PropertyChanged;
-
-                        // 添加到映射集合
-                        FieldMappings.Add(newMapping);
-                    }
-            }
-
-            // 设置筛选条件 - 必须等工作表信息加载完成
-            if (config.PrimaryFilters != null)
-            {
-                PrimaryFilters.Clear();
-                foreach (var filter in config.PrimaryFilters)
-                    if (!string.IsNullOrEmpty(filter.Field) && PrimaryColumns.Contains(filter.Field))
-                    {
-                        var newFilter = new FilterCondition
-                        {
-                            Field = filter.Field,
-                            Operator = filter.Operator,
-                            Value = filter.Value,
-                            LogicalOperator = filter.LogicalOperator
-                        };
-
-                        // 监听属性变更
-                        ((INotifyPropertyChanged)newFilter).PropertyChanged += FilterCondition_PropertyChanged;
-
-                        // 添加到筛选集合
-                        PrimaryFilters.Add(newFilter);
-                    }
-            }
-
-            if (config.SecondaryFilters != null)
-            {
-                SecondaryFilters.Clear();
-                foreach (var filter in config.SecondaryFilters)
-                    if (!string.IsNullOrEmpty(filter.Field) && SecondaryColumns.Contains(filter.Field))
-                    {
-                        var newFilter = new FilterCondition
-                        {
-                            Field = filter.Field,
-                            Operator = filter.Operator,
-                            Value = filter.Value,
-                            LogicalOperator = filter.LogicalOperator
-                        };
-
-                        // 监听属性变更
-                        ((INotifyPropertyChanged)newFilter).PropertyChanged += FilterCondition_PropertyChanged;
-
-                        // 添加到筛选集合
-                        SecondaryFilters.Add(newFilter);
-                    }
-            }
-
-            // 加载预览数据
-            await LoadPreviewDataWithFiltersAsync();
-
-            // 通知命令状态更新
-            NotifyCommandsCanExecuteChanged();
-            StatusMessage = $"配置 '{config.Name}' 已应用";
+            await DialogHost.Show(noConfigContent, "RootDialog");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"应用配置时出错: {ex.Message}");
-            StatusMessage = "应用配置失败";
-            throw;
+            LogDebug($"显示无配置对话框时出错: {ex.Message}");
         }
-        finally
+    }
+
+    /// <summary>
+    ///     显示删除成功的MD3风格对话框
+    /// </summary>
+    private async Task ShowDeleteSuccessDialogAsync(string configName)
+    {
+        try
         {
-            IsBusy = false;
+            // 创建成功消息对话框
+            var successContent = new StackPanel { Margin = new Thickness(24), MinWidth = 350 };
+
+            // 成功标题区域
+            var successTitlePanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+
+            var successIcon = new PackIcon
+            {
+                Kind = PackIconKind.CheckCircleOutline,
+                Width = 28,
+                Height = 28,
+                Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)), // Green
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            successTitlePanel.Children.Add(successIcon);
+
+            var successTitleText = new TextBlock
+            {
+                Text = "删除成功",
+                FontSize = 20,
+                FontWeight = FontWeights.Medium,
+                Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(12, 0, 0, 0)
+            };
+            successTitlePanel.Children.Add(successTitleText);
+            successContent.Children.Add(successTitlePanel);
+
+            var successMessageText = new TextBlock
+            {
+                Text = $"配置 \"{configName}\" 已成功删除。",
+                FontSize = 14,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 32)
+            };
+            successContent.Children.Add(successMessageText);
+
+            var successOkButton = new Button
+            {
+                Content = "确定",
+                Style = Application.Current.Resources["MD3FilledButton"] as Style,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                MinWidth = 88,
+                IsDefault = true
+            };
+
+            successOkButton.Click += (s, e) => { DialogHost.Close("ConfirmDialog"); };
+            successContent.Children.Add(successOkButton);
+
+            await DialogHost.Show(successContent, "ConfirmDialog");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"显示删除成功对话框时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 显示删除错误的MD3风格对话框
+    /// </summary>
+    private async Task ShowDeleteErrorDialogAsync(string errorMessage)
+    {
+        try
+        {
+            // 创建错误消息对话框
+            var errorContent = new StackPanel { Margin = new Thickness(24), MinWidth = 400 };
+
+            // 错误标题区域
+            var errorTitlePanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+
+            var errorIcon = new PackIcon
+            {
+                Kind = PackIconKind.AlertCircleOutline,
+                Width = 28,
+                Height = 28,
+                Foreground = new SolidColorBrush(Color.FromRgb(244, 67, 54)), // Red
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            errorTitlePanel.Children.Add(errorIcon);
+
+            var errorTitleText = new TextBlock
+            {
+                Text = "删除失败",
+                FontSize = 20,
+                FontWeight = FontWeights.Medium,
+                Foreground = new SolidColorBrush(Color.FromRgb(244, 67, 54)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(12, 0, 0, 0)
+            };
+            errorTitlePanel.Children.Add(errorTitleText);
+            errorContent.Children.Add(errorTitlePanel);
+
+            var errorMessageText = new TextBlock
+            {
+                Text = $"删除配置时出错: {errorMessage}",
+                FontSize = 14,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 32)
+            };
+            errorContent.Children.Add(errorMessageText);
+
+            var errorOkButton = new Button
+            {
+                Content = "确定",
+                Style = Application.Current.Resources["MD3OutlinedButton"] as Style,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                MinWidth = 88,
+                IsDefault = true
+            };
+
+            errorOkButton.Click += (s, e) => { DialogHost.Close("ConfirmDialog"); };
+            errorContent.Children.Add(errorOkButton);
+
+            await DialogHost.Show(errorContent, "ConfirmDialog");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"显示删除错误对话框时出错: {ex.Message}");
         }
     }
 
