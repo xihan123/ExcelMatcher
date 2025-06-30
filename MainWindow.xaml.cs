@@ -304,5 +304,10 @@ public partial class MainWindow : Window
         return extension == ".xlsx" || extension == ".xls";
     }
 
+    private void EnablePreview_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel) viewModel.IsPreviewEnabled = true;
+    }
+
     #endregion
 }

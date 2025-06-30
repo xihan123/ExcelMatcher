@@ -398,11 +398,39 @@
                                                 </StackPanel>
                                             </materialDesign:Card>
                                         </Grid>
+                                        
+                                        
 
                                         <!-- Quick Actions -->
                                         <StackPanel Orientation="Horizontal"
                                                     HorizontalAlignment="Right"
                                                     Margin="0,32,0,0">
+
+                                            <!-- 数据预览开关区域 -->
+                                            <materialDesign:Card Style="{StaticResource MD3OutlinedCard}"
+                                                                 Padding="16,12"
+                                                                 Margin="0,0,16,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <!-- 开关图标和文本 -->
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                                                Margin="0,0,16,0">
+                                                        <materialDesign:PackIcon Kind="Eye"
+                                                            Width="18" Height="18"
+                                                            Margin="0,0,8,0"
+                                                            Foreground="{StaticResource MD3PrimaryBrush}" />
+                                                        <TextBlock Text="数据预览开关"
+                                                                   Style="{StaticResource MD3LabelLarge}"
+                                                                   VerticalAlignment="Center" />
+                                                    </StackPanel>
+
+                                                    <!-- 开关控件 -->
+                                                    <ToggleButton x:Name="PreviewToggleButton"
+                                                                  IsChecked="{Binding IsPreviewEnabled}"
+                                                                  Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                                                  ToolTip="启用数据预览可查看文件内容，但会影响大文件处理性能。关闭预览可显著提高加载速度。" />
+                                                </StackPanel>
+                                            </materialDesign:Card>
+                                            
                                             <Button Command="{Binding RefreshDataCommand}"
                                                     Style="{StaticResource MD3OutlinedButton}"
                                                     ToolTip="重新加载文件数据">
@@ -1039,119 +1067,170 @@
                                                        Margin="0" />
                                         </Grid>
 
-                                        <TabControl Style="{StaticResource MD3TabControl}">
-                                            <!-- Primary Data Tab -->
-                                            <TabItem Style="{StaticResource MD3TabItem}">
-                                                <TabItem.Header>
+                                        <Grid Margin="0,16,0,0">
+                                            <!-- 预览已禁用的提示 -->
+                                            <StackPanel VerticalAlignment="Center"
+                                                        HorizontalAlignment="Center"
+                                                        Visibility="{Binding IsPreviewEnabled, 
+                      Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                                <materialDesign:PackIcon Kind="EyeOff"
+                                                                         Width="64" Height="64"
+                                                                         Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
+                                                                         Margin="0,0,0,16" />
+                                                <TextBlock Text="数据预览已关闭"
+                                                           Style="{StaticResource MD3HeadlineSmall}"
+                                                           Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
+                                                           HorizontalAlignment="Center"
+                                                           FontWeight="Medium" />
+                                                <TextBlock Text="当前运行在性能优化模式下"
+                                                           Style="{StaticResource MD3BodyLarge}"
+                                                           Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
+                                                           HorizontalAlignment="Center"
+                                                           Margin="0,8,0,0" />
+                                                <TextBlock Text="启用数据预览开关可查看文件内容，但会影响大文件处理性能"
+                                                           Style="{StaticResource MD3BodyMedium}"
+                                                           Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
+                                                           HorizontalAlignment="Center"
+                                                           TextWrapping="Wrap"
+                                                           MaxWidth="400"
+                                                           TextAlignment="Center"
+                                                           Margin="0,16,0,24" />
+
+                                                <!-- 启用预览按钮 -->
+                                                <Button Style="{StaticResource MD3FilledButton}"
+                                                        Click="EnablePreview_Click">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <materialDesign:PackIcon Kind="Table"
-                                                            Width="20" Height="20"
+                                                        <materialDesign:PackIcon Kind="Eye"
+                                                            Width="18" Height="18"
                                                             Margin="0,0,8,0" />
-                                                        <TextBlock Text="主表数据" />
-                                                        <materialDesign:Chip
-                                                            Content="{Binding SelectedPrimaryWorksheets.Count, StringFormat='{}{0}个工作表'}"
-                                                            Margin="8,0,0,0"
-                                                            Style="{StaticResource MaterialDesignOutlineChip}"
-                                                            FontSize="10"
-                                                            Visibility="{Binding SelectedPrimaryWorksheets.Count, 
-                                                                                   Converter={StaticResource CountToVisibilityConverter}}" />
+                                                        <TextBlock Text="启用数据预览" />
                                                     </StackPanel>
-                                                </TabItem.Header>
-                                                <Grid Margin="0,16,0,0">
-                                                    <!-- Empty State -->
-                                                    <StackPanel VerticalAlignment="Center"
-                                                                HorizontalAlignment="Center"
+                                                </Button>
+                                            </StackPanel>
+
+                                            <!-- 现有的数据显示内容 -->
+                                            <ScrollViewer
+                                                Visibility="{Binding IsPreviewEnabled, 
+                              Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TabControl Style="{StaticResource MD3TabControl}">
+                                                    <!-- Primary Data Tab -->
+                                                    <TabItem Style="{StaticResource MD3TabItem}">
+                                                        <TabItem.Header>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <materialDesign:PackIcon Kind="Table"
+                                                                    Width="20" Height="20"
+                                                                    Margin="0,0,8,0" />
+                                                                <TextBlock Text="主表数据" />
+                                                                <materialDesign:Chip
+                                                                    Content="{Binding SelectedPrimaryWorksheets.Count, StringFormat='{}{0}个工作表'}"
+                                                                    Margin="8,0,0,0"
+                                                                    Style="{StaticResource MaterialDesignOutlineChip}"
+                                                                    FontSize="10"
+                                                                    Visibility="{Binding SelectedPrimaryWorksheets.Count, 
+                                           Converter={StaticResource CountToVisibilityConverter}}" />
+                                                            </StackPanel>
+                                                        </TabItem.Header>
+                                                        <Grid Margin="0,16,0,0">
+                                                            <!-- Empty State -->
+                                                            <StackPanel VerticalAlignment="Center"
+                                                                        HorizontalAlignment="Center"
+                                                                        Visibility="{Binding HasPrimaryPreviewData, 
+                              Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                                                <materialDesign:PackIcon Kind="TableOff"
+                                                                    Width="64" Height="64"
+                                                                    Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
+                                                                    Margin="0,0,0,16" />
+                                                                <TextBlock Text="请先选择主表工作表"
+                                                                           Style="{StaticResource MD3BodyLarge}"
+                                                                           Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
+                                                                           HorizontalAlignment="Center" />
+                                                                <TextBlock Text="选择工作表后将显示数据预览"
+                                                                           Style="{StaticResource MD3BodyMedium}"
+                                                                           Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
+                                                                           HorizontalAlignment="Center"
+                                                                           Margin="0,8,0,0" />
+                                                            </StackPanel>
+
+                                                            <!-- Data Display -->
+                                                            <ScrollViewer
                                                                 Visibility="{Binding HasPrimaryPreviewData, 
-                                                                      Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                                                        <materialDesign:PackIcon Kind="TableOff"
-                                                            Width="64" Height="64"
-                                                            Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                            Margin="0,0,0,16" />
-                                                        <TextBlock Text="请先选择主表工作表"
-                                                                   Style="{StaticResource MD3BodyLarge}"
-                                                                   Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                                   HorizontalAlignment="Center" />
-                                                        <TextBlock Text="选择工作表后将显示数据预览"
-                                                                   Style="{StaticResource MD3BodyMedium}"
-                                                                   Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                                   HorizontalAlignment="Center"
-                                                                   Margin="0,8,0,0" />
-                                                    </StackPanel>
+                                  Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                                MaxHeight="500"
+                                                                Style="{StaticResource MD3ScrollViewer}">
+                                                                <StackPanel>
+                                                                    <!-- Single Worksheet Data -->
+                                                                    <DataGrid
+                                                                        ItemsSource="{Binding PrimaryPreviewData}"
+                                                                        Style="{StaticResource MD3DataGrid}"
+                                                                        AutoGenerateColumns="True"
+                                                                        IsReadOnly="True"
+                                                                        MaxHeight="400" />
+                                                                </StackPanel>
+                                                            </ScrollViewer>
+                                                        </Grid>
+                                                    </TabItem>
 
-                                                    <!-- Data Display -->
-                                                    <ScrollViewer
-                                                        Visibility="{Binding HasPrimaryPreviewData, 
-                                                                          Converter={StaticResource BooleanToVisibilityConverter}}"
-                                                        MaxHeight="500"
-                                                        Style="{StaticResource MD3ScrollViewer}">
-                                                        <StackPanel>
-                                                            <!-- Single Worksheet Data -->
-                                                            <DataGrid ItemsSource="{Binding PrimaryPreviewData}"
-                                                                      Style="{StaticResource MD3DataGrid}"
-                                                                      AutoGenerateColumns="True"
-                                                                      IsReadOnly="True"
-                                                                      MaxHeight="400" />
-                                                        </StackPanel>
-                                                    </ScrollViewer>
-                                                </Grid>
-                                            </TabItem>
+                                                    <!-- Secondary Data Tab -->
+                                                    <TabItem Style="{StaticResource MD3TabItem}">
+                                                        <TabItem.Header>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <materialDesign:PackIcon Kind="Table"
+                                                                    Width="20" Height="20"
+                                                                    Margin="0,0,8,0" />
+                                                                <TextBlock Text="辅助表数据" />
+                                                                <materialDesign:Chip
+                                                                    Content="{Binding SelectedSecondaryWorksheets.Count, StringFormat='{}{0}个工作表'}"
+                                                                    Margin="8,0,0,0"
+                                                                    Style="{StaticResource MaterialDesignOutlineChip}"
+                                                                    FontSize="10"
+                                                                    Visibility="{Binding SelectedSecondaryWorksheets.Count, 
+                                           Converter={StaticResource CountToVisibilityConverter}}" />
+                                                            </StackPanel>
+                                                        </TabItem.Header>
+                                                        <Grid Margin="0,16,0,0">
+                                                            <!-- Empty State -->
+                                                            <StackPanel VerticalAlignment="Center"
+                                                                        HorizontalAlignment="Center"
+                                                                        Visibility="{Binding HasSecondaryPreviewData, 
+                              Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                                                <materialDesign:PackIcon Kind="TableOff"
+                                                                    Width="64" Height="64"
+                                                                    Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
+                                                                    Margin="0,0,0,16" />
+                                                                <TextBlock Text="请先选择辅助表工作表"
+                                                                           Style="{StaticResource MD3BodyLarge}"
+                                                                           Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
+                                                                           HorizontalAlignment="Center" />
+                                                                <TextBlock Text="选择工作表后将显示数据预览"
+                                                                           Style="{StaticResource MD3BodyMedium}"
+                                                                           Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
+                                                                           HorizontalAlignment="Center"
+                                                                           Margin="0,8,0,0" />
+                                                            </StackPanel>
 
-                                            <!-- Secondary Data Tab -->
-                                            <TabItem Style="{StaticResource MD3TabItem}">
-                                                <TabItem.Header>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <materialDesign:PackIcon Kind="Table"
-                                                            Width="20" Height="20"
-                                                            Margin="0,0,8,0" />
-                                                        <TextBlock Text="辅助表数据" />
-                                                        <materialDesign:Chip
-                                                            Content="{Binding SelectedSecondaryWorksheets.Count, StringFormat='{}{0}个工作表'}"
-                                                            Margin="8,0,0,0"
-                                                            Style="{StaticResource MaterialDesignOutlineChip}"
-                                                            FontSize="10"
-                                                            Visibility="{Binding SelectedSecondaryWorksheets.Count, 
-                                                                                   Converter={StaticResource CountToVisibilityConverter}}" />
-                                                    </StackPanel>
-                                                </TabItem.Header>
-                                                <Grid Margin="0,16,0,0">
-                                                    <!-- Empty State -->
-                                                    <StackPanel VerticalAlignment="Center"
-                                                                HorizontalAlignment="Center"
+                                                            <!-- Data Display -->
+                                                            <ScrollViewer
                                                                 Visibility="{Binding HasSecondaryPreviewData, 
-                                                                      Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                                                        <materialDesign:PackIcon Kind="TableOff"
-                                                            Width="64" Height="64"
-                                                            Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                            Margin="0,0,0,16" />
-                                                        <TextBlock Text="请先选择辅助表工作表"
-                                                                   Style="{StaticResource MD3BodyLarge}"
-                                                                   Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                                   HorizontalAlignment="Center" />
-                                                        <TextBlock Text="选择工作表后将显示数据预览"
-                                                                   Style="{StaticResource MD3BodyMedium}"
-                                                                   Foreground="{StaticResource MD3OnSurfaceVariantBrush}"
-                                                                   HorizontalAlignment="Center"
-                                                                   Margin="0,8,0,0" />
-                                                    </StackPanel>
+                                  Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                                MaxHeight="500"
+                                                                Style="{StaticResource MD3ScrollViewer}">
+                                                                <StackPanel>
+                                                                    <!-- Single Worksheet Data -->
+                                                                    <DataGrid
+                                                                        ItemsSource="{Binding SecondaryPreviewData}"
+                                                                        Style="{StaticResource MD3DataGrid}"
+                                                                        AutoGenerateColumns="True"
+                                                                        IsReadOnly="True"
+                                                                        MaxHeight="400" />
+                                                                </StackPanel>
+                                                            </ScrollViewer>
+                                                        </Grid>
+                                                    </TabItem>
+                                                </TabControl>
+                                            </ScrollViewer>
+                                        </Grid>
 
-                                                    <!-- Data Display -->
-                                                    <ScrollViewer
-                                                        Visibility="{Binding HasSecondaryPreviewData, 
-                                                                          Converter={StaticResource BooleanToVisibilityConverter}}"
-                                                        MaxHeight="500"
-                                                        Style="{StaticResource MD3ScrollViewer}">
-                                                        <StackPanel>
-                                                            <!-- Single Worksheet Data -->
-                                                            <DataGrid ItemsSource="{Binding SecondaryPreviewData}"
-                                                                      Style="{StaticResource MD3DataGrid}"
-                                                                      AutoGenerateColumns="True"
-                                                                      IsReadOnly="True"
-                                                                      MaxHeight="400" />
-                                                        </StackPanel>
-                                                    </ScrollViewer>
-                                                </Grid>
-                                            </TabItem>
-                                        </TabControl>
+                                        
                                     </StackPanel>
                                 </materialDesign:Card>
 
@@ -1218,6 +1297,25 @@
                                             FontSize="11"
                                             Visibility="{Binding FieldMappings.Count, 
                                                                    Converter={StaticResource CountToVisibilityConverter}}" />
+
+                                        <!-- 预览状态提示 -->
+                                        <materialDesign:Chip Content="性能优化模式 - 预览已关闭"
+                                                             Style="{StaticResource MaterialDesignOutlineChip}"
+                                                             FontSize="11"
+                                                             Margin="8,0,0,0"
+                                                             Background="{StaticResource MD3TertiaryContainerBrush}"
+                                                             Foreground="{StaticResource MD3OnTertiaryContainerBrush}"
+                                                             Visibility="{Binding IsPreviewEnabled, 
+                                     Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+
+                                        <materialDesign:Chip Content="预览模式 - 可查看数据内容"
+                                                             Style="{StaticResource MaterialDesignOutlineChip}"
+                                                             FontSize="11"
+                                                             Margin="8,0,0,0"
+                                                             Background="{StaticResource MD3PrimaryContainerBrush}"
+                                                             Foreground="{StaticResource MD3OnPrimaryContainerBrush}"
+                                                             Visibility="{Binding IsPreviewEnabled, 
+                                     Converter={StaticResource BooleanToVisibilityConverter}}" />
                                     </StackPanel>
                                 </StackPanel>
 

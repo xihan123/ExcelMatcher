@@ -8,6 +8,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.Input;
@@ -94,6 +95,31 @@ public class MainViewModel : BaseViewModel
     private string _selectedSecondaryWorksheet = string.Empty;
     private ObservableCollection<string> _selectedSecondaryWorksheets;
     private string _statusMessage = "准备就绪";
+
+    // 预览开关属性
+    private bool _isPreviewEnabled = true;
+
+    public bool IsPreviewEnabled
+    {
+        get => _isPreviewEnabled;
+        set
+        {
+            if (SetProperty(ref _isPreviewEnabled, value))
+            {
+                // 当预览被禁用时清空预览数据
+                if (!value)
+                {
+                    PrimaryPreviewData = null;
+                    SecondaryPreviewData = null;
+                }
+                // 当预览被启用时重新加载预览数据
+                else if (PrimaryFile?.IsLoaded == true && SecondaryFile?.IsLoaded == true)
+                {
+                    LoadPreviewDataWithFiltersAsync().ConfigureAwait(false);
+                }
+            }
+        }
+    }
 
     // 构造函数
     public MainViewModel(ExcelFileManager excelFileManager, ConfigurationManager configurationManager)
@@ -834,6 +860,8 @@ public class MainViewModel : BaseViewModel
             }
 
             StatusMessage = $"主表文件已加载，共{PrimaryFile.WorksheetCount}个工作表";
+
+            CheckFileSize();
         }
         catch (Exception ex)
         {
@@ -899,6 +927,8 @@ public class MainViewModel : BaseViewModel
             }
 
             StatusMessage = $"辅助表文件已加载，共{SecondaryFile.WorksheetCount}个工作表";
+
+            CheckFileSize();
         }
         catch (Exception ex)
         {
@@ -909,6 +939,260 @@ public class MainViewModel : BaseViewModel
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    ///     检查文件大小并建议是否关闭预览
+    /// </summary>
+    private async void CheckFileSize()
+    {
+        try
+        {
+            var primarySize = !string.IsNullOrEmpty(PrimaryFilePath) && File.Exists(PrimaryFilePath)
+                ? new FileInfo(PrimaryFilePath).Length
+                : 0;
+            var secondarySize = !string.IsNullOrEmpty(SecondaryFilePath) && File.Exists(SecondaryFilePath)
+                ? new FileInfo(SecondaryFilePath).Length
+                : 0;
+
+            // 如果任一文件超过阈值，建议关闭预览
+            const long largeFileThreshold = 10 * 1024 * 1024; // 10MB
+            const long veryLargeFileThreshold = 50 * 1024 * 1024; // 50MB
+
+            var maxSize = Math.Max(primarySize, secondarySize);
+            var totalSize = primarySize + secondarySize;
+
+            // 检查是否需要建议关闭预览
+            if (IsPreviewEnabled && (maxSize > largeFileThreshold || totalSize > veryLargeFileThreshold))
+            {
+                var fileSizeInfo = new
+                {
+                    PrimarySize = primarySize,
+                    SecondarySize = secondarySize,
+                    MaxSize = maxSize,
+                    TotalSize = totalSize,
+                    IsVeryLarge = maxSize > veryLargeFileThreshold
+                };
+
+                await ShowSuggestDisablePreviewDialog(fileSizeInfo);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"检查文件大小时出错: {ex.Message}");
+            // 不影响主流程，仅记录错误
+        }
+    }
+
+    /// <summary>
+    ///     格式化文件大小显示
+    /// </summary>
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes >= 1024 * 1024 * 1024)
+            return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
+        if (bytes >= 1024 * 1024)
+            return $"{bytes / (1024.0 * 1024):F1} MB";
+        if (bytes >= 1024)
+            return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes} B";
+    }
+
+    /// <summary>
+    ///     显示建议关闭预览的对话框
+    /// </summary>
+    private async Task ShowSuggestDisablePreviewDialog(dynamic fileSizeInfo)
+    {
+        try
+        {
+            // 创建MD3风格的建议对话框内容
+            var suggestionContent = new StackPanel { Margin = new Thickness(24), MinWidth = 500 };
+
+            // 标题区域
+            var titlePanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+
+            // 性能警告图标
+            var warningIcon = new PackIcon
+            {
+                Kind = PackIconKind.Speedometer,
+                Width = 32,
+                Height = 32,
+                Foreground = new SolidColorBrush(Color.FromRgb(255, 193, 7)), // Amber
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            titlePanel.Children.Add(warningIcon);
+
+            // 标题文本
+            var titleText = new TextBlock
+            {
+                Text = "检测到大文件",
+                FontSize = 20,
+                FontWeight = FontWeights.Medium,
+                Foreground = new SolidColorBrush(Color.FromRgb(255, 193, 7)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(12, 0, 0, 0)
+            };
+            titlePanel.Children.Add(titleText);
+            suggestionContent.Children.Add(titlePanel);
+
+            // 文件大小信息卡片
+            var infoCard = new Card
+            {
+                Style = Application.Current.Resources["MD3OutlinedCard"] as Style,
+                Background = new SolidColorBrush(Color.FromRgb(255, 248, 225)), // Light amber
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+
+            var infoPanel = new StackPanel();
+
+            // 文件大小标题
+            var infoTitle = new TextBlock
+            {
+                Text = "文件大小信息",
+                FontWeight = FontWeights.Medium,
+                Margin = new Thickness(0, 0, 0, 12),
+                Style = Application.Current.Resources["MD3TitleMedium"] as Style
+            };
+            infoPanel.Children.Add(infoTitle);
+
+            // 主表文件大小
+            if (fileSizeInfo.PrimarySize > 0)
+            {
+                var primarySizeText = new TextBlock
+                {
+                    Margin = new Thickness(0, 0, 0, 8),
+                    Style = Application.Current.Resources["MD3BodyMedium"] as Style
+                };
+                primarySizeText.Inlines.Add(new Run { Text = "主表文件: ", FontWeight = FontWeights.Medium });
+                primarySizeText.Inlines.Add(new Run { Text = FormatFileSize(fileSizeInfo.PrimarySize) });
+                infoPanel.Children.Add(primarySizeText);
+            }
+
+            // 辅助表文件大小
+            if (fileSizeInfo.SecondarySize > 0)
+            {
+                var secondarySizeText = new TextBlock
+                {
+                    Margin = new Thickness(0, 0, 0, 8),
+                    Style = Application.Current.Resources["MD3BodyMedium"] as Style
+                };
+                secondarySizeText.Inlines.Add(new Run { Text = "辅助表文件: ", FontWeight = FontWeights.Medium });
+                secondarySizeText.Inlines.Add(new Run { Text = FormatFileSize(fileSizeInfo.SecondarySize) });
+                infoPanel.Children.Add(secondarySizeText);
+            }
+
+            // 总大小
+            var totalSizeText = new TextBlock
+            {
+                Style = Application.Current.Resources["MD3BodyMedium"] as Style
+            };
+            totalSizeText.Inlines.Add(new Run { Text = "总大小: ", FontWeight = FontWeights.Medium });
+            totalSizeText.Inlines.Add(new Run { Text = FormatFileSize(fileSizeInfo.TotalSize) });
+            infoPanel.Children.Add(totalSizeText);
+
+            infoCard.Content = infoPanel;
+            suggestionContent.Children.Add(infoCard);
+
+            // 主要消息
+            var messageText = new TextBlock
+            {
+                Text = fileSizeInfo.IsVeryLarge
+                    ? "检测到超大文件，强烈建议关闭数据预览以优化性能。"
+                    : "检测到较大文件，建议关闭数据预览以提高加载速度。",
+                FontSize = 16,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 16)
+            };
+            suggestionContent.Children.Add(messageText);
+
+            // 说明信息
+            var explanationText = new TextBlock
+            {
+                Text = "关闭数据预览后：\n• 文件加载速度显著提升\n• 内存占用大幅减少\n• 所有数据处理功能正常使用\n• 可随时重新启用预览功能",
+                Style = Application.Current.Resources["MD3BodyMedium"] as Style,
+                Foreground = new SolidColorBrush(Color.FromRgb(95, 99, 104)), // Gray
+                Margin = new Thickness(0, 0, 0, 32),
+                LineHeight = 20
+            };
+            suggestionContent.Children.Add(explanationText);
+
+            // 记住选择的复选框
+            var rememberCheckBox = new CheckBox
+            {
+                Content = "记住我的选择（下次不再提示）",
+                Style = Application.Current.Resources["MaterialDesignCheckBox"] as Style,
+                Margin = new Thickness(0, 0, 0, 24),
+                IsChecked = false
+            };
+            suggestionContent.Children.Add(rememberCheckBox);
+
+            // 按钮区域
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            var keepPreviewButton = new Button
+            {
+                Content = "保持预览开启",
+                Style = Application.Current.Resources["MD3OutlinedButton"] as Style,
+                Margin = new Thickness(0, 0, 12, 0),
+                MinWidth = 120
+            };
+
+            var disablePreviewButton = new Button
+            {
+                Content = fileSizeInfo.IsVeryLarge ? "关闭预览（推荐）" : "关闭预览",
+                Style = Application.Current.Resources["MD3FilledButton"] as Style,
+                Background = new SolidColorBrush(Color.FromRgb(255, 193, 7)), // Amber
+                MinWidth = 120
+            };
+
+            buttonPanel.Children.Add(keepPreviewButton);
+            buttonPanel.Children.Add(disablePreviewButton);
+            suggestionContent.Children.Add(buttonPanel);
+
+            // 显示对话框并等待结果
+            var dialogResult = false;
+
+            keepPreviewButton.Click += (s, e) => { DialogHost.Close("RootDialog"); };
+            disablePreviewButton.Click += (s, e) =>
+            {
+                dialogResult = true;
+                DialogHost.Close("RootDialog");
+            };
+
+            // 使用DialogHost显示对话框
+            await DialogHost.Show(suggestionContent, "RootDialog");
+
+            // 处理用户选择
+            if (dialogResult)
+            {
+                // 用户选择关闭预览
+                IsPreviewEnabled = false;
+                StatusMessage = "已关闭数据预览以优化性能";
+
+                // 如果用户选择记住选择，可以保存到配置中
+                if (rememberCheckBox.IsChecked == true)
+                    // TODO: 可以添加到用户配置中，下次自动应用
+                    Debug.WriteLine("用户选择记住关闭预览的选择");
+            }
+            else
+            {
+                // 用户选择保持预览
+                StatusMessage = "保持数据预览开启";
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"显示文件大小建议对话框时出错: {ex.Message}");
+            // 如果对话框显示失败，静默处理，不影响主流程
         }
     }
 
@@ -933,8 +1217,8 @@ public class MainViewModel : BaseViewModel
             PrimaryColumns.Clear();
             foreach (var column in PrimaryFile.Columns) PrimaryColumns.Add(column);
 
-            // 加载预览数据
-            await LoadPreviewDataWithFiltersAsync();
+            // 只有在预览启用时才加载预览数据
+            if (IsPreviewEnabled) await LoadPreviewDataWithFiltersAsync();
 
             StatusMessage = $"主表工作表已加载，共{PrimaryFile.RowCount}行，{PrimaryFile.ColumnCount}列";
         }
@@ -1120,6 +1404,8 @@ public class MainViewModel : BaseViewModel
     // 加载预览数据并应用筛选条件
     private async Task LoadPreviewDataWithFiltersAsync()
     {
+        // 如果预览被禁用，直接返回
+        if (!IsPreviewEnabled) return;
         try
         {
             if (PrimaryFile == null || SecondaryFile == null ||
