@@ -1645,6 +1645,7 @@ public class MainViewModel : BaseViewModel
 
         try
         {
+            var startTime = DateTime.Now;
             IsBusy = true;
             StatusMessage = "准备开始合并数据...";
             ProgressValue = 0;
@@ -1762,6 +1763,9 @@ public class MainViewModel : BaseViewModel
                     SecondaryFilters.ToList(),
                     progress);
 
+            var endTime = DateTime.Now;
+            var duration = endTime - startTime;
+
             // 显示结果对话框
             var successContent = new StackPanel { Margin = new Thickness(24) };
             successContent.Children.Add(new TextBlock
@@ -1780,12 +1784,15 @@ public class MainViewModel : BaseViewModel
             resultGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             resultGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             resultGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            resultGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
 
             // 添加结果信息
             AddResultRow(resultGrid, 0, "处理记录数:", result.ProcessedRows.ToString());
             AddResultRow(resultGrid, 1, "匹配记录数:", result.MatchedRows.ToString());
             AddResultRow(resultGrid, 2, "新增列数:", result.NewColumnsAdded.ToString());
             AddResultRow(resultGrid, 3, "结果已保存到:", result.OutputPath);
+            AddResultRow(resultGrid, 4, "处理耗时:", FormatDuration(duration));
 
             successContent.Children.Add(resultGrid);
 
@@ -1936,6 +1943,22 @@ public class MainViewModel : BaseViewModel
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    ///     格式化时间
+    /// </summary>
+    /// <param name="duration"></param>
+    /// <returns></returns>
+    private string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalHours >= 1)
+            return $"{duration.Hours}小时{duration.Minutes}分钟{duration.Seconds}秒";
+        if (duration.TotalMinutes >= 1)
+            return $"{duration.Minutes}分钟{duration.Seconds}秒";
+        if (duration.TotalSeconds >= 1)
+            return $"{duration.Seconds}.{duration.Milliseconds:000}秒";
+        return $"{duration.Milliseconds}毫秒";
     }
 
     /// <summary>
