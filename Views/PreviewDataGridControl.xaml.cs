@@ -20,7 +20,7 @@ public partial class PreviewDataGridControl : UserControl
             new PropertyMetadata(null));
 
     // 最大高度依赖属性
-    public static readonly DependencyProperty MaxHeightProperty =
+    public new static readonly DependencyProperty MaxHeightProperty =
         DependencyProperty.Register("MaxHeight", typeof(double), typeof(PreviewDataGridControl),
             new PropertyMetadata(300.0));
 
