@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/xihan123/ExcelMatcher/compare/v1.1.0...v1.1.1) (2025-06-30)
+
+
+### Bug Fixes
+
+* 修复清除文件按钮无效 ([440afac](https://github.com/xihan123/ExcelMatcher/commit/440afac8a26bccbb724af42e198c264d233b90dc))
+
 ## [1.1.0](https://github.com/xihan123/ExcelMatcher/compare/v1.0.0...v1.1.0) (2025-06-30)
 
 
